@@ -1,0 +1,20 @@
+version: '3'
+
+tasks:
+
+  default:
+    silent: true
+    cmds:
+      - task --list
+
+  create:
+    desc: Create crts and keys necessary for the service
+    summary: |
+      Create crts and keys necessary for the service
+      This is required to create the TLS secrets used by the load balancer
+      All certificates are self signed, do not use in production environments.
+    cmd: ./create_cert.sh
+
+  domyn:
+    desc: Create all the tls secrets used by the load balancer
+    cmd: ./tls.sh {{.webapp_secret_name}} {{.api_secret_name}}
