@@ -14,28 +14,54 @@ tasks:
     cmd: task --list
 
   build:
-    desc: Build the Docker image for the service.
+    desc: Build all Docker images defined in Compose.yaml.
+    summary: |
+      Runs `docker compose build` to (re)build every image defined in Compose.yaml.
+
+      The image registry prefix is read from the REGISTRY variable in .env.
+      Run this after any change to application code or the Dockerfile before
+      deploying locally or to a cluster.
     cmd: docker compose build
 
   local:deploy:
-    desc: Deploy the service locally using Docker Compose.
+    desc: Start the stack locally with Docker Compose.
+    summary: |
+      Runs `docker compose up -d` to start all services defined in Compose.yaml
+      in detached mode.
+
+      The service is available at http://localhost:8080 by default.
+      Use `task local:remove` to stop it and `docker compose logs -f` to tail logs.
+
+      Requires the image to be built first:
+        task build
     cmd: docker compose up -d
 
   local:remove:
-    desc: Remove the local deployment of the service.
+    desc: Stop and remove the local Docker Compose stack.
+    summary: |
+      Runs `docker compose down` to stop all containers and remove the network
+      created by `task local:deploy`.
+
+      Volumes are not removed. To also remove volumes run:
+        docker compose down -v
     cmd: docker compose down
 
   local:test:
-    desc: Test the local deployment of the service using curl.
+    desc: Smoke-test the local deployment with curl.
+    summary: |
+      Sends a curl request to http://localhost:8080 and prints the full
+      request/response exchange.
+
+      Requires the stack to be running:
+        task local:deploy
     cmds:
       - task: test
         vars:
           ip: "127.0.0.1"
           host: "localhost"
-  
+
   test:
     internal: true
-    desc: Curl the service at a specified IP using a specified hostname.
     requires:
       vars:
         - ip
@@ -43,23 +69,79 @@ tasks:
     cmd: curl -v --resolve "{{.host}}:8080:{{.ip}}" "http://{{.host}}:8080"
 
   cluster:deploy:
-    desc: Deploy the service to a Kubernetes cluster using Helm.
+    desc: Install or upgrade the Helm release on the cluster.
+    summary: |
+      Runs `helm upgrade --install` against the chart at kubernetes/charts/services,
+      using kubernetes/values.test.yaml as the override values file.
+
+      The release is deployed into the namespace defined by the `namespace` variable
+      (default: test). The namespace is created if it does not exist.
+
+      Overridable variables:
+        namespace         — target Kubernetes namespace  (default: test)
+        helm_release_name — Helm release name            (default: services)
+
+      Examples:
+        task cluster:deploy
+        task cluster:deploy namespace=staging
+        task cluster:deploy namespace=staging helm_release_name=my-release
+
+      Requires the image to be built first:
+        task build
     vars:
       namespace: "{{.namespace}}"
       helm_release_name: "{{.helm_release_name}}"
     cmd: helm upgrade --install {{.helm_release_name}} ./kubernetes/charts/services --values kubernetes/values.test.yaml --namespace {{.namespace}} --create-namespace
 
   cluster:remove:
-    desc: Remove the service from the Kubernetes cluster.
+    desc: Uninstall the Helm release from the cluster.
+    summary: |
+      Runs `helm uninstall` to remove the Helm release and all resources it created.
+
+      Does not delete the namespace itself or any manually created Secrets
+      (e.g. TLS secrets created with `task cluster:tls_secret`).
+
+      Overridable variables:
+        namespace         — target Kubernetes namespace  (default: test)
+        helm_release_name — Helm release name            (default: services)
+
+      Examples:
+        task cluster:remove
+        task cluster:remove namespace=staging helm_release_name=my-release
     vars:
       namespace: "{{.namespace}}"
       helm_release_name: "{{.helm_release_name}}"
     cmd: helm uninstall {{.helm_release_name}} --namespace {{.namespace}}
 
   cluster:nginx_ingress:
-    desc: Deploy an Nginx Ingress Controller to the Kubernetes cluster.
+    desc: Deploy the nginx Ingress controller to the cluster (one-time setup).
+    summary: |
+      Applies the official nginx Ingress controller manifest to the cluster.
+      This is required before deploying any service that uses `ingress.enabled: true`
+      in its values.
+
+      Only needs to be run once per cluster. Re-running it is safe — kubectl apply
+      is idempotent.
+
+      After running, wait for the controller pod to become ready:
+        kubectl get pods -n ingress-nginx -w
     cmd: kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/cloud/deploy.yaml
 
   cluster:tls_secret:
-    desc: Create a TLS secret in the Kubernetes cluster for the service.
-    cmd: ./scripts/tls/cluster_tls.sh
+    desc: Create or replace the TLS Secret in the cluster.
+    summary: |
+      Calls scripts/tls/cluster_tls.sh to delete (if present) and recreate a
+      kubernetes.io/tls Secret using a certificate pair from scripts/tls/certs/.
+
+      Any flags accepted by cluster_tls.sh can be forwarded via CLI_ARGS:
+        task cluster:tls_secret -- --cert-name myservice --secret-name myservice-tls --namespace staging
+
+      Default values (from cluster_tls.sh):
+        --cert-name    server_cert
+        --secret-name  tls-secret
+        --namespace    test
+
+      The certificate files must already exist in scripts/tls/certs/.
+      Generate them first if needed:
+        cd scripts/tls && ./create_certs.sh
+    cmd: ./scripts/tls/cluster_tls.sh {{.CLI_ARGS}}
