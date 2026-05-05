@@ -17,10 +17,20 @@ tasks:
   local:remove:
     desc: Remove the local deployment of the service.
     cmd: docker compose down
+
+  local:test:
+    desc: Test the local deployment of the service using curl.
+    cmds:
+      - task: test
+        vars:
+          ip: "127.0.0.1"
+          host: "localhost"
   
   test:
+    internal: true
     desc: Curl the service at a specified IP using a specified hostname.
-    vars:
-      ip: "127.0.0.1"
-      host: "localhost"
+    requires:
+      vars:
+        - ip
+        - host
     cmd: curl -v --resolve "{{.host}}:8080:{{.ip}}" "http://{{.host}}:8080"
