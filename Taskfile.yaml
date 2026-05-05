@@ -59,3 +59,7 @@ tasks:
   cluster:nginx_ingress:
     desc: Deploy an Nginx Ingress Controller to the Kubernetes cluster.
     cmd: kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/cloud/deploy.yaml
+
+  cluster:tls_secret:
+    desc: Create a TLS secret in the Kubernetes cluster for the service.
+    cmd: ./scripts/tls/cluster_tls.sh
