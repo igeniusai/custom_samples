@@ -1,9 +1,9 @@
 services:
-  service:
+  test1:
     build:
-      context: ./apps/example/
+      context: ./services/example/
       dockerfile: DOCKERFILE
-    image: service:latest
+    image: ${registry1}test1:latest
     ports:
       - "8080:80"
     restart: unless-stopped

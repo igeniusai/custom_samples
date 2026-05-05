@@ -8,11 +8,11 @@ metadata:
     {{- include "service.labels" $ | nindent 4 }}
     app.kubernetes.io/component: {{ .name }}
 spec:
-  type: LoadBalancer
+  type: {{ .type | default "LoadBalancer" }}
   ports:
     - port: {{ .port }}
       targetPort: http
-      protocol: TCP
+      protocol: {{ .protocol | default "TCP" }}
       name: http
   selector:
     {{- include "service.selectorLabels" $ | nindent 4 }}

@@ -21,19 +21,30 @@ tolerations: []
 affinity: {}
 
 # List of services to deploy.
-# Each entry produces one Deployment and one LoadBalancer Service.
+# Each entry produces one Deployment and one Service.
 #
 #   name          – used as the resource name suffix and container name
 #   image         – container image settings
+#     registry    – optional registry hostname (e.g. ghcr.io/myorg); omit for local images
+#     repository  – image name
+#     tag         – image tag; defaults to appVersion
+#     pullPolicy  – imagePullPolicy
 #   containerPort – port the container listens on
-#   port          – external port exposed by the LoadBalancer
+#   port          – external port exposed by the Service
 #                   URL on Docker Desktop: http://localhost:<port>
+#   type          – Kubernetes Service type: ClusterIP | NodePort | LoadBalancer
+#                   defaults to LoadBalancer
+#   protocol      – port protocol: TCP | UDP | SCTP
+#                   defaults to TCP
 #
 services:
   - name: example
     image:
+      registry: ""
       repository: service
       tag: "latest"
       pullPolicy: IfNotPresent
     containerPort: 80
     port: 8080
+    type: LoadBalancer
+    protocol: TCP

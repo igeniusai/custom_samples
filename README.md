@@ -12,21 +12,23 @@ A minimal template for containerizing and deploying one or more services — loc
 
 ```text
 .
-├── apps/
+├── services/
 │   └── example/          # Reference app (nginx static file server)
 │       ├── DOCKERFILE
 │       ├── README.md
 │       ├── html/
 │       └── nginx.conf
-├── helm/
-│   └── services/         # Helm chart (supports multiple services)
-│       ├── Chart.yaml
-│       ├── templates/
-│       └── values.yaml   # Chart defaults
+├── kubernetes/
+│   ├── helm/
+│   │   ├── services/         # Helm chart (supports multiple services)
+│   │   │   ├── Chart.yaml
+│   │   │   ├── templates/
+│   │   │   └── values.yaml   # Chart defaults
+│   │   └── values.test.yaml  # Override values for cluster deploys
+│   └── manifests/            # Raw Kubernetes manifests
 ├── .env                  # Environment variables loaded by Taskfile
 ├── Compose.yaml
-├── Taskfile.yaml
-└── values.yaml           # Override values for cluster deploys
+└── Taskfile.yaml
 ```
 
 ## Local deployment
@@ -70,7 +72,7 @@ task build
 task cluster:deploy
 ```
 
-This installs (or upgrades) the Helm release (`services`) into the `test` namespace, creating it if it does not exist. Each entry in the `services` list in `values.yaml` produces one Deployment and one LoadBalancer Service. On Docker Desktop the external IP is `localhost`.
+This installs (or upgrades) the Helm release (`services`) into the `test` namespace, creating it if it does not exist. Each entry in the `services` list in `kubernetes/helm/values.test.yaml` produces one Deployment and one LoadBalancer Service. On Docker Desktop the external IP is `localhost`.
 
 ```bash
 # override the namespace
@@ -93,7 +95,7 @@ helm uninstall services --namespace test
 
 ## Multi-service deployments
 
-`values.yaml` accepts a list of services. Each entry produces its own Deployment and LoadBalancer:
+`kubernetes/helm/values.test.yaml` accepts a list of services. Each entry produces its own Deployment and LoadBalancer:
 
 ```yaml
 services:
@@ -116,9 +118,9 @@ services:
 
 ## Using this repo as a template
 
-The [apps/example/](apps/example/) directory contains a working `nginx` static file server that shows how to structure an app for this repo. See [apps/example/README.md](apps/example/README.md) for details. To ship your own service:
+The [services/example/](services/example/) directory contains a working `nginx` static file server that shows how to structure an app for this repo. See [services/example/README.md](services/example/README.md) for details. To ship your own service:
 
-1. **Replace the app** — swap out the contents of `apps/example/` (or add a new directory under `apps/`) with your own application code and configuration.
-2. **Update the Dockerfile** — point the `COPY` instructions in [apps/example/DOCKERFILE](apps/example/DOCKERFILE) at your app's files.
-3. **Adjust Helm values** — edit [values.yaml](values.yaml) to match your service's port, image name, and any other deployment settings.
+1. **Replace the app** — swap out the contents of `services/example/` (or add a new directory under `services/`) with your own application code and configuration.
+2. **Update the Dockerfile** — point the `COPY` instructions in [services/example/DOCKERFILE](services/example/DOCKERFILE) at your app's files.
+3. **Adjust Helm values** — edit [kubernetes/helm/values.test.yaml](kubernetes/helm/values.test.yaml) to match your service's port, image name, and any other deployment settings.
 4. **Rebuild** — run `task build` after any change to produce a fresh image.

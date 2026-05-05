@@ -51,6 +51,15 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
+Build a fully-qualified image reference for a service entry.
+Usage: include "service.image" (dict "image" .image "defaultTag" $.Chart.AppVersion)
+*/}}
+{{- define "service.image" -}}
+{{- $repo := printf "%s/%s" .image.registry .image.repository | trimPrefix "/" -}}
+{{- printf "%s:%s" $repo (.image.tag | default .defaultTag) -}}
+{{- end }}
+
+{{/*
 Create the name of the service account to use
 */}}
 {{- define "service.serviceAccountName" -}}

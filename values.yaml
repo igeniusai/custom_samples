@@ -1,8 +1,0 @@
-services:
-  - name: example
-    image:
-      repository: service
-      tag: "latest"
-      pullPolicy: Never
-    containerPort: 80
-    port: 8080

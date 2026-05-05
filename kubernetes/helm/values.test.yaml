@@ -1,0 +1,11 @@
+services:
+  - name: example1
+    image:
+      registry: "reg1"
+      repository: test1
+      tag: "latest"
+      pullPolicy: Never
+    containerPort: 80
+    port: 8080
+    type: LoadBalancer
+    protocol: TCP

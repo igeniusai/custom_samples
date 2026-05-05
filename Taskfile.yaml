@@ -1,5 +1,12 @@
 version: '3'
 
+dotenv:
+  - .env
+
+vars:
+  helm_release_name: "services"
+  namespace: "test"
+
 tasks:
 
   default:
@@ -38,5 +45,13 @@ tasks:
   cluster:deploy:
     desc: Deploy the service to a Kubernetes cluster using Helm.
     vars:
-      namespace: "test"
-    cmd: helm upgrade --install service ./service --values values.yaml --namespace {{.namespace}} --create-namespace
+      namespace: "{{.namespace}}"
+      helm_release_name: "{{.helm_release_name}}"
+    cmd: helm upgrade --install {{.helm_release_name}} ./kubernetes/helm/services --values kubernetes/helm/values.test.yaml --namespace {{.namespace}} --create-namespace
+
+  cluster:remove:
+    desc: Remove the service from the Kubernetes cluster.
+    vars:
+      namespace: "{{.namespace}}"
+      helm_release_name: "{{.helm_release_name}}"
+    cmd: helm uninstall {{.helm_release_name}} --namespace {{.namespace}}

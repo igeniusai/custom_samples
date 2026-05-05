@@ -41,7 +41,7 @@ spec:
           securityContext:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          image: "{{ .image.repository }}:{{ .image.tag | default $.Chart.AppVersion }}"
+          image: "{{ include "service.image" (dict "image" .image "defaultTag" $.Chart.AppVersion) }}"
           imagePullPolicy: {{ .image.pullPolicy | default "IfNotPresent" }}
           ports:
             - name: http
