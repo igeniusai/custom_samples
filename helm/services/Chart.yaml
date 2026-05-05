@@ -1,6 +1,6 @@
 apiVersion: v2
-name: service
-description: A Helm chart for Kubernetes
+name: services
+description: Chart used to deploy services to a Kubernetes cluster.
 
 # A chart can be either an 'application' or a 'library' chart.
 #

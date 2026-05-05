@@ -1,0 +1,39 @@
+replicaCount: 1
+
+imagePullSecrets: []
+
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext: {}
+securityContext: {}
+
+resources: {}
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# List of services to deploy.
+# Each entry produces one Deployment and one LoadBalancer Service.
+#
+#   name          – used as the resource name suffix and container name
+#   image         – container image settings
+#   containerPort – port the container listens on
+#   port          – external port exposed by the LoadBalancer
+#                   URL on Docker Desktop: http://localhost:<port>
+#
+services:
+  - name: example
+    image:
+      repository: service
+      tag: "latest"
+      pullPolicy: IfNotPresent
+    containerPort: 80
+    port: 8080

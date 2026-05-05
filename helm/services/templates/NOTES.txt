@@ -1,0 +1,11 @@
+Services deployed to namespace {{ .Release.Namespace }}:
+{{- range .Values.services }}
+
+  {{ .name }}
+    Wait for the external IP:
+      kubectl get svc --namespace {{ $.Release.Namespace }} -w {{ include "service.fullname" $ }}-{{ .name }}
+
+    Then visit:
+      http://<EXTERNAL_IP>:{{ .port }}
+      (Docker Desktop: http://localhost:{{ .port }})
+{{- end }}
