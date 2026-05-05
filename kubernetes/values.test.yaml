@@ -15,10 +15,10 @@ services:
             protocol: TCP
     ingress:
       enabled: true
-      host: "localhost"
+      host: "test.local"
       ingressClass: nginx
       portName: http
       exposeName: ""
       tls:
-        enabled: false
+        enabled: true
         secretName: "tls-secret"

@@ -8,7 +8,7 @@ CA_DAYS=1826
 CERT_NAME="server_cert"
 CERT_CN="test.local"
 CERT_DAYS=825
-CERT_SAN="DNS:*.local"
+CERT_SAN="DNS:test.local"
 KEY_SIZE=2048
 
 usage() {
