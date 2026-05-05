@@ -7,10 +7,6 @@ metadata:
   labels:
     {{- include "service.labels" $ | nindent 4 }}
     app.kubernetes.io/component: {{ .name }}
-  {{- if and .tls .tls.enabled }}
-  annotations:
-    service.beta.kubernetes.io/load-balancer-ssl-cert: {{ .tls.secretName | default (printf "%s-%s-tls" (include "service.fullname" $) .name) }}
-  {{- end }}
 spec:
   type: {{ .type | default "LoadBalancer" }}
   ports:

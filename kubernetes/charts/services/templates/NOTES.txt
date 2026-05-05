@@ -1,23 +1,33 @@
 Services deployed to namespace {{ .Release.Namespace }}:
 {{- range .Values.services }}
+{{- $firstPort := index .ports 0 }}
 
   {{ .name }}
     Wait for the external IP:
       kubectl get svc --namespace {{ $.Release.Namespace }} -w {{ include "service.fullname" $ }}-{{ .name }}
 
     Then visit:
-      {{ if and .tls .tls.enabled }}https{{ else }}http{{ end }}://<EXTERNAL_IP>:{{ .port }}
-      (Docker Desktop: {{ if and .tls .tls.enabled }}https{{ else }}http{{ end }}://localhost:{{ .port }})
-  {{- if and .tls .tls.enabled }}
+      http://<EXTERNAL_IP>:{{ $firstPort.port }}
+      (Docker Desktop: http://localhost:{{ $firstPort.port }})
+  {{- if and .ingress .ingress.enabled }}
 
-    TLS is enabled. The chart expects a kubernetes.io/tls secret named
-    "{{ .tls.secretName | default (printf "%s-%s-tls" (include "service.fullname" $) .name) }}"
+    Ingress enabled (host: {{ .ingress.host }}).
+    Wait for the Ingress address:
+      kubectl get ingress --namespace {{ $.Release.Namespace }} -w {{ include "service.fullname" $ }}-{{ .name }}
+
+    Then visit:
+      {{ if and .ingress.tls .ingress.tls.enabled }}https{{ else }}http{{ end }}://{{ .ingress.host }}
+    {{- if and .ingress.tls .ingress.tls.enabled }}
+
+    HTTPS is enabled. The chart expects a kubernetes.io/tls Secret named
+    "{{ .ingress.tls.secretName | default (printf "%s-%s-tls" (include "service.fullname" $) .name) }}"
     to already exist in namespace {{ $.Release.Namespace }}.
 
     To create it:
-      kubectl create secret tls {{ .tls.secretName | default (printf "%s-%s-tls" (include "service.fullname" $) .name) }} \
+      kubectl create secret tls {{ .ingress.tls.secretName | default (printf "%s-%s-tls" (include "service.fullname" $) .name) }} \
         --cert=<path/to/tls.crt> \
         --key=<path/to/tls.key> \
         --namespace {{ $.Release.Namespace }}
+    {{- end }}
   {{- end }}
 {{- end }}

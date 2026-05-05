@@ -5,9 +5,15 @@ services:
       repository: test1
       tag: "latest"
       pullPolicy: Never
+    ingress:
+      enabled: true
+      host: "localhost"
+      ingressClass: nginx
+      portName: http
+      tls:
+        enabled: false
+        secretName: "tls-secret"
     type: LoadBalancer
-    tls:
-      enabled: false
     ports:
       - port: 8080
         targetPort: 80

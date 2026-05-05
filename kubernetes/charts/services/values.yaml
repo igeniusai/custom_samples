@@ -31,10 +31,15 @@ affinity: {}
 #     pullPolicy  – imagePullPolicy
 #   type          – Kubernetes Service type: ClusterIP | NodePort | LoadBalancer
 #                   defaults to LoadBalancer
-#   tls           – optional TLS configuration (secret must exist before deploying)
-#     enabled     – annotates the Service with the TLS secret reference
-#     secretName  – name of the pre-existing kubernetes.io/tls Secret
-#                   defaults to <release>-<name>-tls
+#   ingress       – optional Ingress configuration
+#     enabled      – creates an Ingress resource for this service
+#     host         – hostname for the Ingress rule
+#     ingressClass – Ingress class to use; defaults to nginx
+#     portName     – port name from .ports to route traffic to; defaults to http
+#     tls          – optional TLS block (secret must exist before deploying)
+#       enabled    – adds a TLS spec to the Ingress
+#       secretName – name of the pre-existing kubernetes.io/tls Secret
+#                    defaults to <release>-<name>-tls
 #   ports         – list of ports exposed by this service; each entry produces
 #                   one named port in both the Deployment and the Service
 #     port        – external port exposed by the Service
@@ -50,9 +55,14 @@ services:
       tag: "latest"
       pullPolicy: IfNotPresent
     type: LoadBalancer
-    tls:
+    ingress:
       enabled: false
-      secretName: ""
+      host: ""
+      ingressClass: nginx
+      portName: http
+      tls:
+        enabled: false
+        secretName: ""
     ports:
       - port: 8080
         targetPort: 80

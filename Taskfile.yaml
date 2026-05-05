@@ -55,3 +55,7 @@ tasks:
       namespace: "{{.namespace}}"
       helm_release_name: "{{.helm_release_name}}"
     cmd: helm uninstall {{.helm_release_name}} --namespace {{.namespace}}
+
+  cluster:nginx_ingress:
+    desc: Deploy an Nginx Ingress Controller to the Kubernetes cluster.
+    cmd: kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/cloud/deploy.yaml
