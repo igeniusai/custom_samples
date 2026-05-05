@@ -1,9 +1,8 @@
-image:
-  pullPolicy: Never
-
-service:
-  type: LoadBalancer
-  port: 8080
-
-ingress:
-  enabled: false
+services:
+  - name: example
+    image:
+      repository: service
+      tag: "latest"
+      pullPolicy: Never
+    containerPort: 80
+    port: 8080
