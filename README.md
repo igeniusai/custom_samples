@@ -19,13 +19,12 @@ A minimal template for containerizing and deploying one or more services — loc
 │       ├── html/
 │       └── nginx.conf
 ├── kubernetes/
-│   ├── helm/
-│   │   ├── services/         # Helm chart (supports multiple services)
-│   │   │   ├── Chart.yaml
-│   │   │   ├── templates/
-│   │   │   └── values.yaml   # Chart defaults
-│   │   └── values.test.yaml  # Override values for cluster deploys
-│   └── manifests/            # Raw Kubernetes manifests
+│   ├── charts/
+│   │   └── services/         # Helm chart (supports multiple services)
+│   │       ├── Chart.yaml
+│   │       ├── templates/
+│   │       └── values.yaml   # Chart defaults
+│   └── values.test.yaml      # Override values for cluster deploys
 ├── .env                  # Environment variables loaded by Taskfile
 ├── Compose.yaml
 └── Taskfile.yaml
@@ -72,7 +71,7 @@ task build
 task cluster:deploy
 ```
 
-This installs (or upgrades) the Helm release (`services`) into the `test` namespace, creating it if it does not exist. Each entry in the `services` list in `kubernetes/helm/values.test.yaml` produces one Deployment and one LoadBalancer Service. On Docker Desktop the external IP is `localhost`.
+This installs (or upgrades) the Helm release (`services`) into the `test` namespace, creating it if it does not exist. Each entry in the `services` list in `kubernetes/values.test.yaml` produces one Deployment and one LoadBalancer Service. On Docker Desktop the external IP is `localhost`.
 
 ```bash
 # override the namespace
@@ -95,7 +94,7 @@ helm uninstall services --namespace test
 
 ## Multi-service deployments
 
-`kubernetes/helm/values.test.yaml` accepts a list of services. Each entry produces its own Deployment and LoadBalancer:
+`kubernetes/values.test.yaml` accepts a list of services. Each entry produces its own Deployment and LoadBalancer:
 
 ```yaml
 services:
@@ -122,5 +121,5 @@ The [services/example/](services/example/) directory contains a working `nginx` 
 
 1. **Replace the app** — swap out the contents of `services/example/` (or add a new directory under `services/`) with your own application code and configuration.
 2. **Update the Dockerfile** — point the `COPY` instructions in [services/example/DOCKERFILE](services/example/DOCKERFILE) at your app's files.
-3. **Adjust Helm values** — edit [kubernetes/helm/values.test.yaml](kubernetes/helm/values.test.yaml) to match your service's port, image name, and any other deployment settings.
+3. **Adjust Helm values** — edit [kubernetes/values.test.yaml](kubernetes/values.test.yaml) to match your service's port, image name, and any other deployment settings.
 4. **Rebuild** — run `task build` after any change to produce a fresh image.

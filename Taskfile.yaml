@@ -47,7 +47,7 @@ tasks:
     vars:
       namespace: "{{.namespace}}"
       helm_release_name: "{{.helm_release_name}}"
-    cmd: helm upgrade --install {{.helm_release_name}} ./kubernetes/helm/services --values kubernetes/helm/values.test.yaml --namespace {{.namespace}} --create-namespace
+    cmd: helm upgrade --install {{.helm_release_name}} ./kubernetes/charts/services --values kubernetes/values.test.yaml --namespace {{.namespace}} --create-namespace
 
   cluster:remove:
     desc: Remove the service from the Kubernetes cluster.
