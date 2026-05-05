@@ -8,13 +8,16 @@ tasks:
       - task --list
 
   create:
-    desc: Create crts and keys necessary for the service
+    desc: Generate a CA and a signed server certificate.
     summary: |
-      Create crts and keys necessary for the service
-      This is required to create the TLS secrets used by the load balancer
-      All certificates are self signed, do not use in production environments.
-    cmd: ./create_cert.sh
+      Generates a local CA (ca.crt / ca.key) and a server certificate signed by
+      that CA. All files are written to the certs/ directory.
+      These are self-signed certificates — do not use in production.
+    cmd: ./create_certs.sh {{.CLI_ARGS}}
 
-  domyn:
-    desc: Create all the tls secrets used by the load balancer
-    cmd: ./tls.sh {{.webapp_secret_name}} {{.api_secret_name}}
+  push:
+    desc: Load a certificate pair into the cluster as a kubernetes.io/tls Secret.
+    summary: |
+      Deletes (if present) and recreates the TLS Secret in the target namespace.
+      The --cert-name flag must match the one used in the create task.
+    cmd: ./cluster_tls.sh {{.CLI_ARGS}}
