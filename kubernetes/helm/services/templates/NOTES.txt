@@ -6,6 +6,18 @@ Services deployed to namespace {{ .Release.Namespace }}:
       kubectl get svc --namespace {{ $.Release.Namespace }} -w {{ include "service.fullname" $ }}-{{ .name }}
 
     Then visit:
-      http://<EXTERNAL_IP>:{{ .port }}
-      (Docker Desktop: http://localhost:{{ .port }})
+      {{ if and .tls .tls.enabled }}https{{ else }}http{{ end }}://<EXTERNAL_IP>:{{ .port }}
+      (Docker Desktop: {{ if and .tls .tls.enabled }}https{{ else }}http{{ end }}://localhost:{{ .port }})
+  {{- if and .tls .tls.enabled }}
+
+    TLS is enabled. The chart expects a kubernetes.io/tls secret named
+    "{{ .tls.secretName | default (printf "%s-%s-tls" (include "service.fullname" $) .name) }}"
+    to already exist in namespace {{ $.Release.Namespace }}.
+
+    To create it:
+      kubectl create secret tls {{ .tls.secretName | default (printf "%s-%s-tls" (include "service.fullname" $) .name) }} \
+        --cert=<path/to/tls.crt> \
+        --key=<path/to/tls.key> \
+        --namespace {{ $.Release.Namespace }}
+  {{- end }}
 {{- end }}

@@ -29,13 +29,18 @@ affinity: {}
 #     repository  – image name
 #     tag         – image tag; defaults to appVersion
 #     pullPolicy  – imagePullPolicy
-#   containerPort – port the container listens on
-#   port          – external port exposed by the Service
-#                   URL on Docker Desktop: http://localhost:<port>
 #   type          – Kubernetes Service type: ClusterIP | NodePort | LoadBalancer
 #                   defaults to LoadBalancer
-#   protocol      – port protocol: TCP | UDP | SCTP
-#                   defaults to TCP
+#   tls           – optional TLS configuration (secret must exist before deploying)
+#     enabled     – annotates the Service with the TLS secret reference
+#     secretName  – name of the pre-existing kubernetes.io/tls Secret
+#                   defaults to <release>-<name>-tls
+#   ports         – list of ports exposed by this service; each entry produces
+#                   one named port in both the Deployment and the Service
+#     port        – external port exposed by the Service
+#     targetPort  – container port number the traffic is forwarded to
+#     name        – port name; used as the named port reference between Service and Deployment
+#     protocol    – TCP | UDP | SCTP; defaults to TCP
 #
 services:
   - name: example
@@ -44,7 +49,12 @@ services:
       repository: service
       tag: "latest"
       pullPolicy: IfNotPresent
-    containerPort: 80
-    port: 8080
     type: LoadBalancer
-    protocol: TCP
+    tls:
+      enabled: false
+      secretName: ""
+    ports:
+      - port: 8080
+        targetPort: 80
+        name: http
+        protocol: TCP

@@ -44,9 +44,11 @@ spec:
           image: "{{ include "service.image" (dict "image" .image "defaultTag" $.Chart.AppVersion) }}"
           imagePullPolicy: {{ .image.pullPolicy | default "IfNotPresent" }}
           ports:
-            - name: http
-              containerPort: {{ .containerPort }}
-              protocol: TCP
+            {{- range .ports }}
+            - name: {{ .name }}
+              containerPort: {{ .targetPort }}
+              protocol: {{ .protocol | default "TCP" }}
+            {{- end }}
           {{- with $.Values.resources }}
           resources:
             {{- toYaml . | nindent 12 }}

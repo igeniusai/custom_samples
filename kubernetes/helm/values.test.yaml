@@ -5,7 +5,11 @@ services:
       repository: test1
       tag: "latest"
       pullPolicy: Never
-    containerPort: 80
-    port: 8080
     type: LoadBalancer
-    protocol: TCP
+    tls:
+      enabled: false
+    ports:
+      - port: 8080
+        targetPort: 80
+        name: http
+        protocol: TCP
