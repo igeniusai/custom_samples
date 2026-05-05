@@ -1,0 +1,9 @@
+image:
+  pullPolicy: Never
+
+service:
+  type: LoadBalancer
+  port: 8080
+
+ingress:
+  enabled: false

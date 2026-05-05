@@ -34,3 +34,9 @@ tasks:
         - ip
         - host
     cmd: curl -v --resolve "{{.host}}:8080:{{.ip}}" "http://{{.host}}:8080"
+
+  cluster:deploy:
+    desc: Deploy the service to a Kubernetes cluster using Helm.
+    vars:
+      namespace: "test"
+    cmd: helm upgrade --install service ./service --values values.yaml --namespace {{.namespace}} --create-namespace
