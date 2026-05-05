@@ -20,32 +20,33 @@ nodeSelector: {}
 tolerations: []
 affinity: {}
 
-# List of services to deploy.
-# Each entry produces one Deployment and one Service.
+# List of deployments. Each entry produces one Deployment and one or more Services.
 #
-#   name          – used as the resource name suffix and container name
+#   name          – resource name suffix and container name
 #   image         – container image settings
 #     registry    – optional registry hostname (e.g. ghcr.io/myorg); omit for local images
 #     repository  – image name
 #     tag         – image tag; defaults to appVersion
 #     pullPolicy  – imagePullPolicy
-#   type          – Kubernetes Service type: ClusterIP | NodePort | LoadBalancer
-#                   defaults to LoadBalancer
+#   expose        – list of Kubernetes Service objects for this Deployment;
+#                   each entry produces one Service named <release>-<app>-<expose.name>
+#     name        – Service name suffix
+#     type        – ClusterIP | NodePort | LoadBalancer; defaults to LoadBalancer
+#     ports       – list of ports for this Service
+#       port      – external port exposed by the Service
+#       targetPort – container port number the traffic is forwarded to
+#       name      – port name; referenced by both the Service and the Deployment
+#       protocol  – TCP | UDP | SCTP; defaults to TCP
 #   ingress       – optional Ingress configuration
-#     enabled      – creates an Ingress resource for this service
-#     host         – hostname for the Ingress rule
+#     enabled     – creates an Ingress resource for this Deployment
+#     host        – hostname for the Ingress rule
 #     ingressClass – Ingress class to use; defaults to nginx
-#     portName     – port name from .ports to route traffic to; defaults to http
-#     tls          – optional TLS block (secret must exist before deploying)
-#       enabled    – adds a TLS spec to the Ingress
+#     portName    – port name from expose[*].ports to route traffic to; defaults to http
+#     exposeName  – which expose entry to use as the Ingress backend; defaults to first entry
+#     tls         – optional TLS block (secret must exist before deploying)
+#       enabled   – adds a TLS spec to the Ingress
 #       secretName – name of the pre-existing kubernetes.io/tls Secret
 #                    defaults to <release>-<name>-tls
-#   ports         – list of ports exposed by this service; each entry produces
-#                   one named port in both the Deployment and the Service
-#     port        – external port exposed by the Service
-#     targetPort  – container port number the traffic is forwarded to
-#     name        – port name; used as the named port reference between Service and Deployment
-#     protocol    – TCP | UDP | SCTP; defaults to TCP
 #
 services:
   - name: example
@@ -54,17 +55,20 @@ services:
       repository: service
       tag: "latest"
       pullPolicy: IfNotPresent
-    type: LoadBalancer
+    expose:
+      - name: external
+        type: LoadBalancer
+        ports:
+          - port: 8080
+            targetPort: 80
+            name: http
+            protocol: TCP
     ingress:
       enabled: false
       host: ""
       ingressClass: nginx
       portName: http
+      exposeName: ""
       tls:
         enabled: false
         secretName: ""
-    ports:
-      - port: 8080
-        targetPort: 80
-        name: http
-        protocol: TCP

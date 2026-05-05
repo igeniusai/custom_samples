@@ -44,10 +44,16 @@ spec:
           image: "{{ include "service.image" (dict "image" .image "defaultTag" $.Chart.AppVersion) }}"
           imagePullPolicy: {{ .image.pullPolicy | default "IfNotPresent" }}
           ports:
+            {{- $seen := dict }}
+            {{- range .expose }}
             {{- range .ports }}
+            {{- if not (hasKey $seen .name) }}
+            {{- $_ := set $seen .name true }}
             - name: {{ .name }}
               containerPort: {{ .targetPort }}
               protocol: {{ .protocol | default "TCP" }}
+            {{- end }}
+            {{- end }}
             {{- end }}
           {{- with $.Values.resources }}
           resources:

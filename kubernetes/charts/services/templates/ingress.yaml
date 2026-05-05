@@ -25,7 +25,7 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: {{ include "service.fullname" $ }}-{{ .name }}
+                name: {{ include "service.fullname" $ }}-{{ .name }}-{{ .ingress.exposeName | default (index .expose 0).name }}
                 port:
                   name: {{ .ingress.portName | default "http" }}
 {{- end }}

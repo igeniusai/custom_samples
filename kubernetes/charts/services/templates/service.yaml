@@ -1,12 +1,14 @@
 {{- range .Values.services }}
+{{- $svc := . }}
+{{- range .expose }}
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "service.fullname" $ }}-{{ .name }}
+  name: {{ include "service.fullname" $ }}-{{ $svc.name }}-{{ .name }}
   labels:
     {{- include "service.labels" $ | nindent 4 }}
-    app.kubernetes.io/component: {{ .name }}
+    app.kubernetes.io/component: {{ $svc.name }}
 spec:
   type: {{ .type | default "LoadBalancer" }}
   ports:
@@ -18,5 +20,6 @@ spec:
     {{- end }}
   selector:
     {{- include "service.selectorLabels" $ | nindent 4 }}
-    app.kubernetes.io/component: {{ .name }}
+    app.kubernetes.io/component: {{ $svc.name }}
+{{- end }}
 {{- end }}

@@ -5,17 +5,20 @@ services:
       repository: test1
       tag: "latest"
       pullPolicy: Never
+    expose:
+      - name: external
+        type: LoadBalancer
+        ports:
+          - port: 8080
+            targetPort: 80
+            name: http
+            protocol: TCP
     ingress:
       enabled: true
       host: "localhost"
       ingressClass: nginx
       portName: http
+      exposeName: ""
       tls:
         enabled: false
         secretName: "tls-secret"
-    type: LoadBalancer
-    ports:
-      - port: 8080
-        targetPort: 80
-        name: http
-        protocol: TCP

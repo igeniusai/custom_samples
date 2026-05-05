@@ -1,10 +1,13 @@
 Services deployed to namespace {{ .Release.Namespace }}:
 {{- range .Values.services }}
-{{- $firstPort := index .ports 0 }}
+{{- $svc := . }}
+{{- $firstPort := index (index .expose 0).ports 0 }}
 
   {{ .name }}
-    Wait for the external IP:
-      kubectl get svc --namespace {{ $.Release.Namespace }} -w {{ include "service.fullname" $ }}-{{ .name }}
+    Services:
+    {{- range .expose }}
+      kubectl get svc --namespace {{ $.Release.Namespace }} {{ include "service.fullname" $ }}-{{ $svc.name }}-{{ .name }}
+    {{- end }}
 
     Then visit:
       http://<EXTERNAL_IP>:{{ $firstPort.port }}
