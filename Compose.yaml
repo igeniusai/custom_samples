@@ -1,7 +1,7 @@
 services:
-  nginx:
+  service:
     build:
-      context: .
+      context: ./apps/example/
       dockerfile: DOCKERFILE
     image: service:latest
     ports:
