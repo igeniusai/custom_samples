@@ -1,0 +1,26 @@
+version: '3'
+
+tasks:
+
+  default:
+    internal: true
+    cmd: task --list
+
+  build:
+    desc: Build the Docker image for the service.
+    cmd: docker compose build
+
+  local:deploy:
+    desc: Deploy the service locally using Docker Compose.
+    cmd: docker compose up -d
+
+  local:remove:
+    desc: Remove the local deployment of the service.
+    cmd: docker compose down
+  
+  test:
+    desc: Curl the service at a specified IP using a specified hostname.
+    vars:
+      ip: "127.0.0.1"
+      host: "localhost"
+    cmd: curl -v --resolve "{{.host}}:8080:{{.ip}}" "http://{{.host}}:8080"
