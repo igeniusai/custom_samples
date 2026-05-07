@@ -1,9 +1,10 @@
 Services deployed to namespace {{ .Release.Namespace }}:
 {{- range .Values.services }}
 {{- $svc := . }}
-{{- $firstPort := index (index .expose 0).ports 0 }}
 
   {{ .name }}
+  {{- if .expose }}
+    {{- $firstPort := index (index .expose 0).ports 0 }}
     Services:
     {{- range .expose }}
       kubectl get svc --namespace {{ $.Release.Namespace }} {{ include "service.fullname" $ }}-{{ $svc.name }}-{{ .name }}
@@ -12,6 +13,7 @@ Services deployed to namespace {{ .Release.Namespace }}:
     Then visit:
       http://<EXTERNAL_IP>:{{ $firstPort.port }}
       (Docker Desktop: http://localhost:{{ $firstPort.port }})
+  {{- end }}
   {{- if and .ingress .ingress.enabled }}
 
     Ingress enabled (host: {{ .ingress.host }}).

@@ -1,6 +1,24 @@
 {{- range .Values.services }}
 {{- if and .ingress .ingress.enabled }}
 ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "service.fullname" $ }}-{{ .name }}-ingress
+  labels:
+    {{- include "service.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ .name }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "service.selectorLabels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ .name }}
+  ports:
+    - name: http
+      port: 80
+      targetPort: {{ .ingress.targetPort | default 80 }}
+      protocol: TCP
+---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -25,8 +43,8 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: {{ include "service.fullname" $ }}-{{ .name }}-{{ .ingress.exposeName | default (index .expose 0).name }}
+                name: {{ include "service.fullname" $ }}-{{ .name }}-ingress
                 port:
-                  name: {{ .ingress.portName | default "http" }}
+                  name: http
 {{- end }}
 {{- end }}

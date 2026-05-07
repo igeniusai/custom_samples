@@ -41,7 +41,7 @@ affinity: {}
 #     enabled     – creates an Ingress resource for this Deployment
 #     host        – hostname for the Ingress rule
 #     ingressClass – Ingress class to use; defaults to nginx
-#     portName    – port name from expose[*].ports to route traffic to; defaults to http
+#     targetPort  – container port the ingress ClusterIP Service forwards to; defaults to 80
 #     exposeName  – which expose entry to use as the Ingress backend; defaults to first entry
 #     tls         – optional TLS block (secret must exist before deploying)
 #       enabled   – adds a TLS spec to the Ingress
@@ -67,7 +67,7 @@ services:
       enabled: false
       host: ""
       ingressClass: nginx
-      portName: http
+      targetPort: 80
       exposeName: ""
       tls:
         enabled: false
