@@ -23,6 +23,10 @@ tasks:
       deploying locally or to a cluster.
     cmd: docker compose build
 
+  update:
+    desc: Update the example service source code.
+    cmd: ./scripts/example/pull.sh
+
   local:deploy:
     desc: Start the stack locally with Docker Compose.
     summary: |
