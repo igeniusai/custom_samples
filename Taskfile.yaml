@@ -7,10 +7,16 @@ vars:
   helm_release_name: "services"
   namespace: "test"
 
+includes:
+  tls:
+    taskfile: scripts/tls/Taskfile.yaml
+    dir: scripts/tls
+    internal: true
+
 tasks:
 
   default:
-    internal: true
+    silent: true
     cmd: task --list
 
   build:
@@ -148,4 +154,7 @@ tasks:
       The certificate files must already exist in scripts/tls/certs/.
       Generate them first if needed:
         cd scripts/tls && ./create_certs.sh
-    cmd: ./scripts/tls/cluster_tls.sh {{.CLI_ARGS}}
+    cmd:
+      task: tls:push
+      vars:
+        CLI_ARGS: "{{.CLI_ARGS}}"
