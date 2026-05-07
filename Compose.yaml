@@ -1,9 +1,20 @@
 services:
   test1:
     build:
-      context: ./services/example/
+      context: ./services/example1/
       dockerfile: DOCKERFILE
     image: ${registry1}test1:latest
     ports:
       - "8080:80"
+    restart: unless-stopped
+
+  test2:
+    build:
+      context: ./services/example2/
+      dockerfile: Dockerfile
+    image: ${registry2}test2:latest
+    ports:
+      - "8081:8080"
+    environment:
+      - EXPOSE_SERVEO=false
     restart: unless-stopped
