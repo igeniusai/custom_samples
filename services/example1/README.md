@@ -5,7 +5,7 @@ A minimal `nginx`-based static file server, used as a reference app to demonstra
 ## Structure
 
 ```text
-apps/example/
+app/example1/
 ├── html/
 │   └── index.html      # Static assets served by nginx
 └── nginx.conf          # nginx server configuration
