@@ -15,6 +15,4 @@ services:
     image: ${registry2}test2:latest
     ports:
       - "8081:8080"
-    environment:
-      - EXPOSE_SERVEO=false
     restart: unless-stopped
