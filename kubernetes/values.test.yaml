@@ -30,6 +30,9 @@ services:
       repository: test2
       tag: "latest"
       pullPolicy: Never
+    env:
+      - name: EXPOSE_SERVEO
+        value: "false"
     expose:
       - name: external1
         type: LoadBalancer
@@ -44,6 +47,7 @@ services:
       ingressClass: nginx
       portName: http
       exposeName: ""
+      targetPort: 8080
       tls:
         enabled: true
         secretName: "tls-secret"

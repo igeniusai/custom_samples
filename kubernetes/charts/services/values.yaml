@@ -28,6 +28,10 @@ affinity: {}
 #     repository  – image name
 #     tag         – image tag; defaults to appVersion
 #     pullPolicy  – imagePullPolicy
+#   env           – list of environment variables injected into the container
+#     name        – variable name
+#     value       – literal string value (use valueFrom for secrets/configmaps)
+#     valueFrom   – reference to a Secret or ConfigMap key (standard Kubernetes valueFrom)
 #   expose        – list of Kubernetes Service objects for this Deployment;
 #                   each entry produces one Service named <release>-<app>-<expose.name>
 #     name        – Service name suffix
@@ -55,6 +59,15 @@ services:
       repository: service
       tag: "latest"
       pullPolicy: IfNotPresent
+    env: []
+    # env:
+    #   - name: MY_VAR
+    #     value: "my-value"
+    #   - name: MY_SECRET
+    #     valueFrom:
+    #       secretKeyRef:
+    #         name: my-secret
+    #         key: secret-key
     expose:
       - name: external
         type: LoadBalancer

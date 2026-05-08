@@ -378,6 +378,27 @@ task cluster:deploy
 
 ---
 
+## Deployed services
+
+After a successful `task cluster:deploy` the following endpoints are available (assuming the default `kubernetes/values.test.yaml` and `/etc/hosts` entries pointing `127.0.0.1` at each hostname):
+
+| Service | Host | Notable endpoints |
+| --- | --- | --- |
+| example1 | `https://test1.local` | Static HTML page |
+| example2 | `https://test2.local` | MCP investment demo |
+
+### OpenAPI (example2)
+
+The example2 service exposes an interactive OpenAPI page at:
+
+```text
+https://test2.local/docs
+```
+
+Open it in a browser after deploying to explore the available API endpoints.
+
+---
+
 ## Task reference
 
 | Task | Description |

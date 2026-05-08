@@ -43,6 +43,10 @@ spec:
           {{- end }}
           image: "{{ include "service.image" (dict "image" .image "defaultTag" $.Chart.AppVersion) }}"
           imagePullPolicy: {{ .image.pullPolicy | default "IfNotPresent" }}
+          {{- with .env }}
+          env:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           ports:
             {{- $seen := dict }}
             {{- range .expose }}
