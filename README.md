@@ -47,12 +47,28 @@ task local:deploy
 # visit http://localhost:8080
 ```
 
+Or without Task:
+
+```bash
+docker compose build
+docker compose up -d
+# visit http://localhost:8080
+```
+
 ### Cluster (Docker Desktop)
 
 ```bash
 task build
 task cluster:nginx_ingress   # first time only — installs the nginx Ingress controller
 task cluster:deploy
+```
+
+Or without Task:
+
+```bash
+docker compose build
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/cloud/deploy.yaml
+helm upgrade --install services ./kubernetes/charts/services --values kubernetes/values.test.yaml --namespace test --create-namespace
 ```
 
 ---
@@ -66,12 +82,25 @@ task build
 task local:deploy
 ```
 
+Or without Task:
+
+```bash
+docker compose build
+docker compose up -d
+```
+
 The server will be available at `http://localhost:8080`.
 
 ### Stop
 
 ```bash
 task local:remove
+```
+
+Or without Task:
+
+```bash
+docker compose down
 ```
 
 ### View logs
@@ -86,6 +115,12 @@ docker compose logs -f
 task local:test
 ```
 
+Or without Task:
+
+```bash
+curl -v --resolve "localhost:8080:127.0.0.1" "http://localhost:8080"
+```
+
 Sends a `curl` request to `localhost:8080` and prints the response.
 
 ---
@@ -94,10 +129,16 @@ Sends a `curl` request to `localhost:8080` and prints the response.
 
 Requires a running Kubernetes cluster (e.g. Docker Desktop with Kubernetes enabled).
 
-### Install the nginx Ingress controller (first time only)
+### Install the Nginx Ingress controller (first time only)
 
 ```bash
 task cluster:nginx_ingress
+```
+
+Or without Task:
+
+```bash
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/cloud/deploy.yaml
 ```
 
 This deploys the nginx Ingress controller to the cluster. Only needed once per cluster.
@@ -110,10 +151,22 @@ The cluster uses the locally built image (`imagePullPolicy: Never`), so build it
 task build
 ```
 
+Or without Task:
+
+```bash
+docker compose build
+```
+
 ### Deploy
 
 ```bash
 task cluster:deploy
+```
+
+Or without Task:
+
+```bash
+helm upgrade --install services ./kubernetes/charts/services --values kubernetes/values.test.yaml --namespace test --create-namespace
 ```
 
 Installs (or upgrades) the Helm release `services` into the `test` namespace, creating it if it does not exist. Override the namespace or release name:
@@ -121,13 +174,19 @@ Installs (or upgrades) the Helm release `services` into the `test` namespace, cr
 ```bash
 task cluster:deploy namespace=staging
 task cluster:deploy namespace=staging helm_release_name=my-release
+# without Task:
+helm upgrade --install my-release ./kubernetes/charts/services --values kubernetes/values.test.yaml --namespace staging --create-namespace
 ```
 
 ### Uninstall
 
 ```bash
 task cluster:remove
-# or manually:
+```
+
+Or without Task:
+
+```bash
 helm uninstall services --namespace test
 ```
 
