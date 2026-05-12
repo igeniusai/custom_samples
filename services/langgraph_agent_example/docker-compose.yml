@@ -1,0 +1,5 @@
+services:
+  langgraph-agent:
+    build: .
+    env_file: .env
+    restart: unless-stopped
