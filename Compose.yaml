@@ -18,3 +18,11 @@ services:
     environment:
       - EXPOSE_SERVEO="false"
     restart: unless-stopped
+
+  langgraph_deterministic_graph_example:
+    build:
+      context: ./services/langgraph_deterministic_graph_example/
+      dockerfile: Dockerfile
+    image: ${regdomyn}langgraph-deterministic-graph-example:latest
+    restart: unless-stopped
+
