@@ -1,0 +1,6 @@
+# Install domyn-agents from the bundled wheel in ./wheels/
+# Run: pip install wheels/domyn_agents-*.whl -r requirements.txt
+langgraph>=0.2.0
+langchain>=0.3.0
+langchain-core>=0.3.0
+langchain-openai>=0.3.0

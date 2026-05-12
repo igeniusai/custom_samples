@@ -26,3 +26,10 @@ services:
     image: ${regdomyn}langgraph-deterministic-graph-example:latest
     restart: unless-stopped
 
+  langgraph_agent_example:
+    build:
+      context: ./services/langgraph_agent_example/
+      dockerfile: Dockerfile
+    image: ${regdomyn}langgraph-agent-example:latest
+    restart: unless-stopped
+
