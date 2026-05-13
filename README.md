@@ -9,24 +9,31 @@ A template for containerizing and deploying one or more services — locally wit
 - [Helm](https://helm.sh/docs/intro/install/) for cluster deployments
 - [kubectl](https://kubernetes.io/docs/tasks/tools/) for cluster operations
 
+See [PREREQUISITE.md](PREREQUISITE.md) for full setup instructions including registry configuration, cluster options, and TLS setup.
+
 ## Project structure
 
 ```text
 .
 ├── services/
-│   └── example/              # Reference app (nginx static file server)
-│       ├── DOCKERFILE
-│       ├── README.md
-│       ├── html/
-│       └── nginx.conf
+│   ├── example1/                          # nginx static file server
+│   ├── example2/                          # MCP ESG investment demo (FastAPI + FastMCP)
+│   ├── langgraph_agent_example/           # LangGraph agent example
+│   ├── langgraph_deterministic_graph_example/ # LangGraph deterministic graph example
+│   ├── custom_ui_guardrail/               # Guardrail with custom admin UI
+│   └── minimal_guardrail/                 # Minimal guardrail example
 ├── kubernetes/
 │   ├── charts/
 │   │   └── services/         # Helm chart
 │   │       ├── Chart.yaml
 │   │       ├── templates/
 │   │       └── values.yaml   # Chart defaults
-│   └── values.test.yaml      # Override values for cluster deploys
+│   ├── manifest/             # Raw Kubernetes manifests (e.g. secrets)
+│   ├── values.test.yaml      # Override values for local cluster deploys
+│   └── values.blueprint.yaml # Override values for production/remote cluster deploys
 ├── scripts/
+│   ├── example/
+│   │   └── pull.sh           # Update example service source code
 │   └── tls/                  # TLS certificate generation and cluster secret management
 │       ├── create_certs.sh
 │       ├── cluster_tls.sh
@@ -34,7 +41,8 @@ A template for containerizing and deploying one or more services — locally wit
 │       └── certs/
 ├── .env                      # Environment variables loaded by Taskfile
 ├── Compose.yaml
-└── Taskfile.yaml
+├── Taskfile.yaml
+└── PREREQUISITE.md           # Full setup and prerequisites guide
 ```
 
 ## Quick start
@@ -68,7 +76,7 @@ Or without Task:
 ```bash
 docker compose build
 kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/cloud/deploy.yaml
-helm upgrade --install services ./kubernetes/charts/services --values kubernetes/values.test.yaml --namespace test --create-namespace
+helm upgrade --install services ./kubernetes/charts/services --values kubernetes/values.test.yaml --namespace test --create-namespace --kube-context docker-desktop
 ```
 
 ---
@@ -166,16 +174,19 @@ task cluster:deploy
 Or without Task:
 
 ```bash
-helm upgrade --install services ./kubernetes/charts/services --values kubernetes/values.test.yaml --namespace test --create-namespace
+helm upgrade --install services ./kubernetes/charts/services --values kubernetes/values.test.yaml --namespace test --create-namespace --kube-context docker-desktop
 ```
 
-Installs (or upgrades) the Helm release `services` into the `test` namespace, creating it if it does not exist. Override the namespace or release name:
+Installs (or upgrades) the Helm release `services` into the `test` namespace, creating it if it does not exist. The task will prompt for confirmation before applying, showing the active context and namespace.
+
+Override the namespace, release name, or kubectl context:
 
 ```bash
 task cluster:deploy namespace=staging
 task cluster:deploy namespace=staging helm_release_name=my-release
+task cluster:deploy context=my-aks-cluster namespace=production
 # without Task:
-helm upgrade --install my-release ./kubernetes/charts/services --values kubernetes/values.test.yaml --namespace staging --create-namespace
+helm upgrade --install my-release ./kubernetes/charts/services --values kubernetes/values.test.yaml --namespace staging --create-namespace --kube-context my-aks-cluster
 ```
 
 ### Uninstall
@@ -403,11 +414,12 @@ Open it in a browser after deploying to explore the available API endpoints.
 
 | Task | Description |
 | --- | --- |
-| `task build` | Build the Docker image via `docker compose build` |
+| `task build` | Build all Docker images via `docker compose build` |
+| `task update` | Update example service source code |
 | `task local:deploy` | Start the stack locally with Docker Compose |
 | `task local:remove` | Stop and remove the local stack |
 | `task local:test` | Curl `localhost:8080` to verify the local deployment |
-| `task cluster:deploy` | Install or upgrade the Helm release |
+| `task cluster:deploy` | Install or upgrade the Helm release (prompts for confirmation) |
 | `task cluster:remove` | Uninstall the Helm release |
 | `task cluster:nginx_ingress` | Deploy the nginx Ingress controller (first time only) |
 | `task cluster:tls_secret` | Create the TLS Secret in the cluster |
@@ -416,7 +428,7 @@ Open it in a browser after deploying to explore the available API endpoints.
 
 ## Using this repo as a template
 
-The [services/example/](services/example/) directory contains a working nginx static file server. See [services/example/README.md](services/example/README.md) for details. To ship your own service:
+The [services/example1/](services/example1/) directory contains a working nginx static file server and [services/example2/](services/example2/) contains a FastAPI + MCP service. See their respective READMEs for details. To ship your own service:
 
 1. **Add your app** — create a new directory under `services/` with your application code and a `DOCKERFILE`.
 2. **Update Compose.yaml** — point the `build.context` at your new directory and set the `image` name.
