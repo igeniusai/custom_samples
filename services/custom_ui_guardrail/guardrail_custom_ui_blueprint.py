@@ -56,7 +56,7 @@ import httpx
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, Field, ValidationError
 from pydantic_settings import BaseSettings
 
 # ---------------------------------------------------------------------------
@@ -80,11 +80,24 @@ DEFAULT_POLICY = """
 """
 
 
+class Verdict(StrEnum):
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    MODIFIED = "modified"
+
+
+class JudgeVerdict(BaseModel):
+    verdict: Verdict
+    reason: str
+    output: str
+
+
 class GuardrailState(BaseSettings):
     policy: str | None = DEFAULT_POLICY
     model_name: str | None = None
     url: str | None = None
     api_key: str | None = None
+    verdict_history: dict[str, list[JudgeVerdict]] = Field(default_factory=dict)
 
 
 _input_state = GuardrailState()
@@ -124,18 +137,6 @@ Example (modified):
 """
 
 _MAX_RETRIES = 3
-
-
-class Verdict(StrEnum):
-    APPROVED = "approved"
-    REJECTED = "rejected"
-    MODIFIED = "modified"
-
-
-class JudgeVerdict(BaseModel):
-    verdict: Verdict
-    reason: str
-    output: str
 
 
 async def _call_llm(messages: list[dict[str, str]], state: GuardrailState) -> str:
@@ -291,6 +292,11 @@ async def _evaluate(
 
     try:
         verdict = await _generate_verdict(messages, state)
+        turn_id = event.get("turn_id")
+        if turn_id is not None:
+            state.verdict_history.setdefault(str(turn_id), []).append(verdict)
+        else:
+            print(f"[guardrail] {guardrail_name} verdict NOT saved — turn_id is None")
     except httpx.HTTPStatusError as exc:
         error = f"LLM provider returned HTTP {exc.response.status_code}: {exc.response.text[:200]}"
         print(f"[guardrail] {guardrail_name} error: {error}")
@@ -405,6 +411,52 @@ async def get_output_admin_ui() -> HTMLResponse:
     )
 
 
+# ── Verdict history ─────────────────────────────────────────────────────────
+
+
+def _get_verdict_data(
+    state: GuardrailState,
+    message_id: str | None,
+) -> dict[str, list[dict]]:
+    def serialise(verdicts: list[JudgeVerdict]) -> list[dict]:
+        return [v.model_dump() for v in verdicts]
+
+    if message_id is not None:
+        return {message_id: serialise(state.verdict_history.get(message_id, []))}
+
+    return {tid: serialise(vs) for tid, vs in state.verdict_history.items()}
+
+
+@app.get("/input-guardrail/verdict-history/data")
+async def get_input_verdict_history_data(message_id: str | None = None) -> dict:
+    return _get_verdict_data(_input_state, message_id)
+
+
+@app.get("/input-guardrail/verdict-history", response_class=HTMLResponse)
+async def get_input_verdict_history_ui() -> HTMLResponse:
+    return HTMLResponse(
+        content=_render_verdict_history_ui(
+            title="Input Guardrail",
+            data_path="/input-guardrail/verdict-history/data",
+        )
+    )
+
+
+@app.get("/output-guardrail/verdict-history/data")
+async def get_output_verdict_history_data(message_id: str | None = None) -> dict:
+    return _get_verdict_data(_output_state, message_id)
+
+
+@app.get("/output-guardrail/verdict-history", response_class=HTMLResponse)
+async def get_output_verdict_history_ui() -> HTMLResponse:
+    return HTMLResponse(
+        content=_render_verdict_history_ui(
+            title="Output Guardrail",
+            data_path="/output-guardrail/verdict-history/data",
+        )
+    )
+
+
 # ── Discovery ───────────────────────────────────────────────────────────────
 
 
@@ -430,6 +482,23 @@ async def get_input_custom_ui_metadata() -> dict:
                 },
                 "path": "/input-guardrail/judge-settings",
                 "locations": ["space"],
+                "icon": None,
+            },
+            {
+                "id": "input-guardrail-history",
+                "label": {
+                    "default": "Input Verdict History",
+                    "it": "Storico verdetti input",
+                    "de": "Eingabe-Verlauf",
+                    "fr": "Historique entrée",
+                    "es": "Historial de entrada",
+                },
+                "description": {
+                    "default": "View the verdict history for user inputs and agent-start events.",
+                    "it": "Visualizza lo storico dei verdetti per gli input utente e gli eventi agent_start.",
+                },
+                "path": "/input-guardrail/verdict-history",
+                "locations": ["message"],
                 "icon": None,
             },
         ],
@@ -460,13 +529,277 @@ async def get_output_custom_ui_metadata() -> dict:
                 "locations": ["space"],
                 "icon": None,
             },
+            {
+                "id": "output-guardrail-history",
+                "label": {
+                    "default": "Output Verdict History",
+                    "it": "Storico verdetti output",
+                    "de": "Ausgabe-Verlauf",
+                    "fr": "Historique sortie",
+                    "es": "Historial de salida",
+                },
+                "description": {
+                    "default": "View the verdict history for agent response events.",
+                    "it": "Visualizza lo storico dei verdetti per le risposte dell'agente.",
+                },
+                "path": "/output-guardrail/verdict-history",
+                "locations": ["message"],
+                "icon": None,
+            },
         ],
     }
 
 
 # ---------------------------------------------------------------------------
-# Shared admin UI template
+# Shared UI templates
 # ---------------------------------------------------------------------------
+
+
+def _render_verdict_history_ui(title: str, data_path: str) -> str:
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{title} — Verdict History</title>
+    <style>
+        *, *::before, *::after {{ box-sizing: border-box; }}
+
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f0f2f5;
+            color: #1a2332;
+            margin: 0;
+            padding: 32px 16px 64px;
+            font-size: 14px;
+            line-height: 1.5;
+        }}
+
+        body.dark {{ background: #0d1117; color: #e6edf3; }}
+
+        .page-header {{
+            max-width: 760px;
+            margin: 0 auto 28px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #d5dbe4;
+        }}
+
+        body.dark .page-header {{ border-bottom-color: #30363d; }}
+
+        .page-header h1 {{
+            font-size: 20px;
+            font-weight: 600;
+            color: #0d1b2e;
+            margin: 0 0 4px;
+            letter-spacing: -0.2px;
+        }}
+
+        body.dark .page-header h1 {{ color: #e6edf3; }}
+
+        .page-header p {{ color: #5a6a7e; margin: 0; font-size: 13px; }}
+
+        .conv-group {{ max-width: 760px; margin: 0 auto 24px; }}
+
+        .section-label {{
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: #7a8fa6;
+            margin-bottom: 8px;
+        }}
+
+        body.dark .section-label {{ color: #8b949e; }}
+
+        .section-label code {{
+            font-family: 'SFMono-Regular', Consolas, monospace;
+            font-size: 11px;
+            background: #e4e8ee;
+            padding: 1px 5px;
+            border-radius: 3px;
+            color: #1a2332;
+        }}
+
+        body.dark .section-label code {{ background: #21262d; color: #e6edf3; }}
+
+        .turn-group {{ margin-bottom: 12px; }}
+
+        .turn-label {{
+            font-size: 11px;
+            color: #a0aab5;
+            margin-bottom: 6px;
+        }}
+
+        .turn-label code {{
+            font-family: 'SFMono-Regular', Consolas, monospace;
+            font-size: 11px;
+        }}
+
+        .verdict-card {{
+            background: #ffffff;
+            border: 1px solid #d5dbe4;
+            border-left-width: 3px;
+            border-radius: 6px;
+            padding: 12px 16px;
+            margin-bottom: 8px;
+        }}
+
+        body.dark .verdict-card {{ background: #161b22; border-color: #30363d; border-left-color: inherit; }}
+
+        .verdict-card.verdict-approved {{ border-left-color: #1a6b3c; }}
+        .verdict-card.verdict-rejected {{ border-left-color: #9b1c1c; }}
+        .verdict-card.verdict-modified {{ border-left-color: #92600a; }}
+
+        .verdict-header {{ display: flex; align-items: baseline; gap: 10px; }}
+
+        .badge {{
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            padding: 2px 8px;
+            border-radius: 20px;
+            flex-shrink: 0;
+        }}
+
+        .badge-approved {{ background: #d1fae5; color: #065f46; }}
+        .badge-rejected {{ background: #fee2e2; color: #7f1d1d; }}
+        .badge-modified {{ background: #fef3c7; color: #78350f; }}
+
+        body.dark .badge-approved {{ background: #052e16; color: #6ee7b7; }}
+        body.dark .badge-rejected {{ background: #3b0a0a; color: #fca5a5; }}
+        body.dark .badge-modified {{ background: #3b2200; color: #fcd34d; }}
+
+        .verdict-reason {{ font-size: 13px; color: #3d4f63; flex: 1; }}
+        body.dark .verdict-reason {{ color: #c9d1d9; }}
+
+        .verdict-output {{
+            margin-top: 8px;
+            padding: 8px 12px;
+            background: #f8f9fb;
+            border-radius: 4px;
+            font-size: 12.5px;
+            color: #5a6a7e;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }}
+
+        body.dark .verdict-output {{ background: #1c2129; color: #8b949e; }}
+
+        .empty, .error-msg {{
+            max-width: 760px;
+            margin: 40px auto;
+            text-align: center;
+            color: #7a8fa6;
+            font-size: 14px;
+        }}
+
+        .error-msg {{ color: #9b1c1c; }}
+        body.dark .error-msg {{ color: #fca5a5; }}
+
+        #loading {{
+            max-width: 760px;
+            margin: 40px auto;
+            text-align: center;
+            color: #7a8fa6;
+        }}
+    </style>
+</head>
+<body>
+    <div class="page-header">
+        <h1>{title}</h1>
+        <p>Verdict history</p>
+    </div>
+    <div id="loading">Loading…</div>
+    <div id="content" style="display:none"></div>
+
+    <script>
+        const DATA_PATH = '{data_path}';
+        let authHeader = null;
+
+        function applyTheme(theme) {{
+            document.body.classList.toggle('dark', theme === 'dark');
+        }}
+
+        // Read what we can from the URL immediately — Domyn passes message_id
+        // as a query param on the iFrame src.
+        const urlParams = new URLSearchParams(window.location.search);
+        applyTheme(urlParams.get('theme') || 'light');
+        const urlMessageId = urlParams.get('message_id') || null;
+
+        // Still request full params to get the authorization header.
+        window.parent.postMessage({{ type: 'request-params' }}, '*');
+
+        window.addEventListener('message', function(event) {{
+            if (!event.data || event.data.type !== 'params') return;
+            if (event.data.theme) applyTheme(event.data.theme);
+            if (event.data.authorization) authHeader = event.data.authorization;
+            fetchVerdicts(event.data.message_id || urlMessageId);
+        }});
+
+        // Fallback: if no postMessage arrives within 600 ms, use URL params directly.
+        setTimeout(function() {{
+            if (!authHeader) fetchVerdicts(urlMessageId);
+        }}, 600);
+
+        async function fetchVerdicts(messageId) {{
+            const params = new URLSearchParams();
+            if (messageId) params.set('message_id', messageId);
+            const url = DATA_PATH + (params.toString() ? '?' + params : '');
+            const headers = {{}};
+            if (authHeader) headers['Authorization'] = authHeader;
+            try {{
+                const resp = await fetch(url, {{ headers }});
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
+                render(await resp.json());
+            }} catch (e) {{
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('content').style.display = 'block';
+                document.getElementById('content').innerHTML =
+                    '<div class="error-msg">Failed to load verdicts: ' + escHtml(e.message) + '</div>';
+            }}
+        }}
+
+        function render(data) {{
+            document.getElementById('loading').style.display = 'none';
+            const content = document.getElementById('content');
+            content.style.display = 'block';
+            const turnIds = Object.keys(data);
+            if (turnIds.length === 0) {{
+                content.innerHTML = '<div class="empty">No verdicts recorded yet.</div>';
+                return;
+            }}
+            let html = '';
+            for (const [turnId, verdicts] of Object.entries(data)) {{
+                html += '<div class="conv-group">';
+                html += '<div class="section-label">Turn <code>' + escHtml(turnId) + '</code></div>';
+                for (const v of verdicts) {{
+                    html += '<div class="verdict-card verdict-' + escHtml(v.verdict) + '">';
+                    html += '<div class="verdict-header">';
+                    html += '<span class="badge badge-' + escHtml(v.verdict) + '">' + escHtml(v.verdict) + '</span>';
+                    html += '<span class="verdict-reason">' + escHtml(v.reason) + '</span>';
+                    html += '</div>';
+                    if (v.output) {{
+                        html += '<div class="verdict-output">' + escHtml(v.output) + '</div>';
+                    }}
+                    html += '</div>';
+                }}
+                html += '</div>';
+            }}
+            content.innerHTML = html;
+        }}
+
+        function escHtml(s) {{
+            return String(s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }}
+    </script>
+</body>
+</html>"""
 
 
 def _render_admin_ui(
@@ -756,4 +1089,4 @@ def _render_admin_ui(
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8080, log_level="info")
+    uvicorn.run(app, host="0.0.0.0", port=9001, log_level="info")
