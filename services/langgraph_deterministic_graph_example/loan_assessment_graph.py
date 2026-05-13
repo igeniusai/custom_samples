@@ -9,7 +9,7 @@ Flow:
 
 Input
 -----
-Must be called by passing a JSON object string with these required keys:
+Must be called by passing a JSON string with these required keys:
 
     {
         "salary":       <number>  — annual salary in dollars (e.g. 45000),
