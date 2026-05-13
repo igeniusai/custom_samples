@@ -28,7 +28,11 @@ metadata:
     app.kubernetes.io/component: {{ .name }}
   annotations:
     kubernetes.io/ingress.class: {{ .ingress.ingressClass | default "nginx" }}
+    {{- with .ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
 spec:
+  ingressClassName: {{ .ingress.ingressClass | default "nginx" }}
   {{- if and .ingress.tls .ingress.tls.enabled }}
   tls:
     - hosts:
