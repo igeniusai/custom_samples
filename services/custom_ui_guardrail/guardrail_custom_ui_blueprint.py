@@ -50,8 +50,6 @@ import re
 import uuid
 from datetime import datetime
 from enum import StrEnum
-from pathlib import Path
-from string import Template
 from typing import Any
 
 import httpx
@@ -183,9 +181,7 @@ _RETRY_PROMPT = (
 )
 
 
-async def _generate_verdict(
-    messages: list[dict[str, str]], state: GuardrailState
-) -> JudgeVerdict:
+async def _generate_verdict(messages: list[dict[str, str]], state: GuardrailState) -> JudgeVerdict:
     history = list(messages)
     last_error: Exception | None = None
     content: str = ""
@@ -214,9 +210,7 @@ async def _generate_verdict(
                 {"role": "assistant", "content": content},
                 {"role": "user", "content": _RETRY_PROMPT},
             ]
-    raise RuntimeError(
-        f"Guardrail failed after {_MAX_RETRIES} attempts"
-    ) from last_error
+    raise RuntimeError(f"Guardrail failed after {_MAX_RETRIES} attempts") from last_error
 
 
 # ---------------------------------------------------------------------------
@@ -286,9 +280,7 @@ async def _evaluate(
         )
 
     event_type = event.get("event_type", "event")
-    content_text = "\n".join(
-        (part.get("text") or "") for part in event.get("content", [])
-    )
+    content_text = "\n".join((part.get("text") or "") for part in event.get("content", []))
 
     messages: list[dict[str, str]] = [
         {"role": "system", "content": _SYSTEM_PROMPT.format(policy=state.policy)},
@@ -462,27 +454,286 @@ async def get_output_custom_ui_metadata() -> dict:
 # ---------------------------------------------------------------------------
 
 
-_ADMIN_UI_TEMPLATE = Template(
-    (Path(__file__).parent / "admin_ui_template.html").read_text()
-)
-
-
-def _render_admin_ui(
-    title: str, subtitle: str, post_path: str, state: GuardrailState
-) -> str:
-    return _ADMIN_UI_TEMPLATE.substitute(
-        title=title,
-        subtitle=subtitle,
-        post_path=post_path,
-        model_val=state.model_name or "",
-        url_val=state.url or "",
-        policy_val=state.policy or "",
-        api_key_hint=(
-            '<div class="field-hint has-key">An API key is currently set. Leave blank to keep it.</div>'
-            if state.api_key
-            else ""
-        ),
+def _render_admin_ui(title: str, subtitle: str, post_path: str, state: GuardrailState) -> str:
+    policy_val = state.policy or ""
+    model_val = state.model_name or ""
+    url_val = state.url or ""
+    api_key_hint = (
+        '<div class="field-hint has-key">An API key is currently set. Leave blank to keep it.</div>'
+        if state.api_key
+        else ""
     )
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{title} — Configuration</title>
+    <style>
+        *, *::before, *::after {{ box-sizing: border-box; }}
+
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f0f2f5;
+            color: #1a2332;
+            margin: 0;
+            padding: 32px 16px 64px;
+            font-size: 14px;
+            line-height: 1.5;
+        }}
+
+        body.dark {{
+            background: #0d1117;
+            color: #e6edf3;
+        }}
+
+        .page-header {{
+            max-width: 680px;
+            margin: 0 auto 28px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #d5dbe4;
+        }}
+
+        body.dark .page-header {{ border-bottom-color: #30363d; }}
+
+        .page-header h1 {{
+            font-size: 20px;
+            font-weight: 600;
+            color: #0d1b2e;
+            margin: 0 0 4px;
+            letter-spacing: -0.2px;
+        }}
+
+        body.dark .page-header h1 {{ color: #e6edf3; }}
+
+        .page-header p {{
+            color: #5a6a7e;
+            margin: 0;
+            font-size: 13px;
+        }}
+
+        .card {{
+            background: #ffffff;
+            border: 1px solid #d5dbe4;
+            border-radius: 6px;
+            max-width: 680px;
+            margin: 0 auto 20px;
+            overflow: hidden;
+        }}
+
+        body.dark .card {{ background: #161b22; border-color: #30363d; }}
+
+        .card-header {{
+            padding: 14px 20px;
+            border-bottom: 1px solid #e8ecf0;
+            background: #f8f9fb;
+        }}
+
+        body.dark .card-header {{ background: #1c2129; border-bottom-color: #30363d; }}
+
+        .card-header h2 {{
+            font-size: 13px;
+            font-weight: 600;
+            color: #1a2332;
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+        }}
+
+        body.dark .card-header h2 {{ color: #e6edf3; }}
+
+        .card-body {{ padding: 20px; }}
+
+        .field {{ margin-bottom: 16px; }}
+        .field:last-child {{ margin-bottom: 0; }}
+
+        label {{
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: #3d4f63;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }}
+
+        body.dark label {{ color: #8b949e; }}
+
+        input[type="text"],
+        input[type="password"],
+        textarea {{
+            width: 100%;
+            padding: 9px 12px;
+            border: 1px solid #c8d0da;
+            border-radius: 4px;
+            font-size: 13px;
+            font-family: inherit;
+            color: #1a2332;
+            background: #ffffff;
+            transition: border-color 0.15s, box-shadow 0.15s;
+            outline: none;
+        }}
+
+        body.dark input[type="text"],
+        body.dark input[type="password"],
+        body.dark textarea {{
+            background: #0d1117;
+            border-color: #30363d;
+            color: #e6edf3;
+        }}
+
+        input[type="text"]:focus,
+        input[type="password"]:focus,
+        textarea:focus {{
+            border-color: #2563a8;
+            box-shadow: 0 0 0 3px rgba(37, 99, 168, 0.12);
+        }}
+
+        input::placeholder, textarea::placeholder {{ color: #a0aab5; }}
+        textarea {{ height: 140px; resize: vertical; line-height: 1.55; }}
+
+        .field-hint {{ font-size: 11.5px; color: #7a8fa6; margin-top: 4px; }}
+        .field-hint.has-key {{ color: #2d7a4f; font-weight: 500; }}
+
+        .card-footer {{
+            padding: 14px 20px;
+            border-top: 1px solid #e8ecf0;
+            background: #f8f9fb;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }}
+
+        body.dark .card-footer {{ background: #1c2129; border-top-color: #30363d; }}
+
+        button {{
+            padding: 8px 22px;
+            background: #1a3f6f;
+            color: #ffffff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            font-family: inherit;
+            letter-spacing: 0.2px;
+            transition: background 0.15s;
+        }}
+
+        button:hover {{ background: #163460; }}
+        button:active {{ background: #112a4f; }}
+
+        #status {{ font-size: 13px; display: none; padding: 4px 0; }}
+        .success {{ color: #1a6b3c; }}
+        .error   {{ color: #9b1c1c; }}
+    </style>
+</head>
+<body>
+    <div class="page-header">
+        <h1>{title}</h1>
+        <p>{subtitle}</p>
+    </div>
+
+    <div class="card">
+        <div class="card-header"><h2>LLM Provider</h2></div>
+        <div class="card-body">
+            <div class="field">
+                <label for="model-name">Model name</label>
+                <input type="text" id="model-name" placeholder="e.g. Qwen/Qwen3-32B" value="{model_val}">
+            </div>
+            <div class="field">
+                <label for="inference-url">Inference URL</label>
+                <input type="text" id="inference-url" placeholder="e.g. http://llm-server/v1/chat/completions" value="{url_val}">
+            </div>
+            <div class="field">
+                <label for="api-key">API key</label>
+                <input type="password" id="api-key" placeholder="Leave blank to keep the existing key if already set">
+                {api_key_hint}
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header"><h2>Guardrail Policy</h2></div>
+        <div class="card-body">
+            <div class="field">
+                <label for="text-input">Instruction</label>
+                <textarea id="text-input" placeholder="Enter guardrail instruction...">{policy_val}</textarea>
+            </div>
+        </div>
+        <div class="card-footer">
+            <button onclick="saveConfig()">Save configuration</button>
+            <div id="status"></div>
+        </div>
+    </div>
+
+    <script>
+        const POST_PATH = '{post_path}';
+        const statusEl = document.getElementById('status');
+
+        // Read display hints from URL params; request full auth context via postMessage.
+        const urlParams = new URLSearchParams(window.location.search);
+        applyTheme(urlParams.get('theme') || 'light');
+
+        let authorizationHeader = null;
+
+        function applyTheme(theme) {{
+            document.body.classList.toggle('dark', theme === 'dark');
+        }}
+
+        window.parent.postMessage({{ type: 'request-params' }}, '*');
+
+        window.addEventListener('message', function(event) {{
+            if (!event.data || event.data.type !== 'params') return;
+            if (event.data.theme) applyTheme(event.data.theme);
+            if (event.data.authorization) authorizationHeader = event.data.authorization;
+        }});
+
+        function buildHeaders() {{
+            const headers = {{ 'Content-Type': 'application/json' }};
+            if (authorizationHeader) headers['Authorization'] = authorizationHeader;
+            return headers;
+        }}
+
+        function showStatus(message, success) {{
+            statusEl.textContent = message;
+            statusEl.className = success ? 'success' : 'error';
+            statusEl.style.display = 'block';
+        }}
+
+        async function saveConfig() {{
+            const policy = document.getElementById('text-input').value.trim();
+            const model_name = document.getElementById('model-name').value.trim();
+            const url = document.getElementById('inference-url').value.trim();
+            const api_key = document.getElementById('api-key').value;
+
+            if (!policy) {{ showStatus('Please enter a guardrail instruction before saving.', false); return; }}
+            if (!model_name || !url) {{ showStatus('Please fill in both model name and inference URL.', false); return; }}
+
+            const body = {{ policy, model_name, url }};
+            if (api_key) body.api_key = api_key;
+
+            try {{
+                const resp = await fetch(POST_PATH, {{
+                    method: 'POST',
+                    headers: buildHeaders(),
+                    body: JSON.stringify(body),
+                }});
+                const data = await resp.json();
+                if (resp.ok) {{
+                    showStatus('Configuration saved successfully.', true);
+                    document.getElementById('api-key').value = '';
+                }} else {{
+                    showStatus(data.detail || 'Error saving configuration.', false);
+                }}
+            }} catch (e) {{
+                showStatus('Network error: ' + e.message, false);
+            }}
+        }}
+
+    </script>
+</body>
+</html>"""
 
 
 if __name__ == "__main__":
