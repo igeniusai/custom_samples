@@ -41,7 +41,7 @@ services:
     build:
       context: ./services/custom_ui_guardrail/
       dockerfile: Dockerfile
-    image: ${regdomyn}guardrail-custom-ui-example:latest
+    image: ${regdomyn}guardrail-custom-ui-example:demo2
     platform: "linux/amd64"
     restart: unless-stopped
   
