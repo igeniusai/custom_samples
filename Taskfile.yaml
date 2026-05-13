@@ -5,6 +5,7 @@ dotenv:
 
 vars:
   helm_release_name: "services"
+  helm_values_file: "kubernetes/values.test.yaml"
   namespace: "test"
 
 includes:
@@ -101,7 +102,10 @@ tasks:
     vars:
       namespace: "{{.namespace}}"
       helm_release_name: "{{.helm_release_name}}"
-    cmd: helm upgrade --install {{.helm_release_name}} ./kubernetes/charts/services --values kubernetes/values.test.yaml --namespace {{.namespace}} --create-namespace
+      current_context:
+        sh: kubectl config current-context
+    prompt: "kubectl context is '{{.current_context}}', namespace is '{{.namespace}}'. Are you sure you want to proceed?"
+    cmd: helm upgrade --install {{.helm_release_name}} ./kubernetes/charts/services --values {{.helm_values_file}} --namespace {{.namespace}} --create-namespace
 
   cluster:remove:
     desc: Uninstall the Helm release from the cluster.

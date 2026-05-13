@@ -5,7 +5,7 @@ services:
       registry: "reg1"
       repository: test1
       tag: "latest"
-      pullPolicy: Never
+      pullPolicy: Always
     expose:
       - name: external1
         type: LoadBalancer
@@ -29,7 +29,7 @@ services:
       registry: "reg2"
       repository: test2
       tag: "latest"
-      pullPolicy: Never
+      pullPolicy: Always
     env:
       - name: EXPOSE_SERVEO
         value: "false"

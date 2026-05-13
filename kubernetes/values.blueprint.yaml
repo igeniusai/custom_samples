@@ -1,0 +1,21 @@
+services:
+  - name: langgraph-deterministic-graph-example
+    image:
+      registry: "eu.gcr.io/igenius-registry"
+      repository: langgraph-deterministic-graph-example
+      tag: "latest"
+      pullPolicy: Always
+    imagePullSecrets:
+      - name: vault-image-pull-secrets
+    env:
+      - name: PLATFORM_BASE_URL
+        value: "analytics-az.crystal.io"
+      - name:   SPACE_ID
+        value: 9db0eaf1-b2c9-4afd-ac6e-f8185473a4ea
+      - name: CHANNEL_ID
+        value: 63a1ad4c0bfa79c3182bd1e5af38
+      - name: DOMYN_API_KEY
+        valueFrom:
+          secretKeyRef:
+            name: blueprint
+            key: DOMYN_API_KEY

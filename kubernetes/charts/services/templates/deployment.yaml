@@ -26,7 +26,8 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
-      {{- with $.Values.imagePullSecrets }}
+      {{- $pullSecrets := coalesce .imagePullSecrets $.Values.imagePullSecrets }}
+      {{- with $pullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
