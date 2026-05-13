@@ -457,7 +457,7 @@ async def get_output_custom_ui_metadata() -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Shared admin UI template 
+# Shared admin UI template  
 # ---------------------------------------------------------------------------
 
 
