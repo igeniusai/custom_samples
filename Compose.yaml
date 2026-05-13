@@ -42,6 +42,7 @@ services:
       context: ./services/custom_ui_guardrail/
       dockerfile: Dockerfile
     image: ${regdomyn}guardrail-custom-ui-example:latest
+    platform: "linux/amd64"
     restart: unless-stopped
   
   minimal-guardrail-example:
@@ -49,4 +50,5 @@ services:
       context: ./services/minimal_guardrail/
       dockerfile: Dockerfile
     image: ${regdomyn}minimal-guardrail-example:latest
+    platform: "linux/amd64"
     restart: unless-stopped
