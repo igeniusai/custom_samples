@@ -48,6 +48,8 @@ affinity: {}
 #     enabled     – creates an Ingress resource for this Deployment
 #     host        – hostname for the Ingress rule
 #     ingressClass – Ingress class to use; defaults to nginx
+#                    set as both spec.ingressClassName and kubernetes.io/ingress.class annotation
+#     annotations – additional annotations merged onto the Ingress resource
 #     targetPort  – container port the ingress ClusterIP Service forwards to; defaults to 80
 #     exposeName  – which expose entry to use as the Ingress backend; defaults to first entry
 #     tls         – optional TLS block (secret must exist before deploying)
@@ -86,6 +88,10 @@ services:
       enabled: false
       host: ""
       ingressClass: nginx
+      annotations: {}
+      # annotations:
+      #   konghq.com/protocols: "https"
+      #   konghq.com/https-redirect-status-code: "301"
       targetPort: 80
       exposeName: ""
       tls:
