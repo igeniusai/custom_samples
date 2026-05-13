@@ -74,7 +74,7 @@ LOCAL_TOOLS = [
     reverse_string,
     count_words,
     _platform_tools.get_tool("web_search") if _platform_tools else None,
-    # _platform_tools.get_tool("show_store_content") if _platform_tools else None,
+    # _platform_tools.get_tool("search_papers_arxiv") if _platform_tools else None,
 ]
 
 # ---------------------------------------------------------------------------
