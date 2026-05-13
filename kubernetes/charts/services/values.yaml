@@ -28,6 +28,9 @@ affinity: {}
 #     repository  – image name
 #     tag         – image tag; defaults to appVersion
 #     pullPolicy  – imagePullPolicy
+#   imagePullSecrets – list of pull-secret names for this service's image;
+#                      overrides the top-level imagePullSecrets when set
+#     - name       – name of the kubernetes.io/dockerconfigjson Secret
 #   env           – list of environment variables injected into the container
 #     name        – variable name
 #     value       – literal string value (use valueFrom for secrets/configmaps)
@@ -59,6 +62,9 @@ services:
       repository: service
       tag: "latest"
       pullPolicy: IfNotPresent
+    imagePullSecrets: []
+    # imagePullSecrets:
+    #   - name: my-registry-secret
     env: []
     # env:
     #   - name: MY_VAR
