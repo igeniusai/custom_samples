@@ -23,7 +23,7 @@ services:
     image:
       registry: "eu.gcr.io/igenius-registry"
       repository: guardrail-custom-ui-example
-      tag: "latest"
+      tag: "demo1"
       pullPolicy: Always
     imagePullSecrets:
       - name: vault-image-pull-secrets
