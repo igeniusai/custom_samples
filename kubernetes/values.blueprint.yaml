@@ -30,11 +30,8 @@ services:
     ingress:
       enabled: true
       host: "blueprint.devopscluster.crystal.io"
-      ingressClass: "kong"
+      ingressClass: "nginx"
       annotations:
-        konghq.com/strip-path: "true"
-        konghq.com/protocols: https
-        konghq.com/https-redirect-status-code: "308"
         cert-manager.io/cluster-issuer: "letsencrypt"
       portName: http
       exposeName: "http"
