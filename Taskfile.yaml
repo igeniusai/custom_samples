@@ -91,21 +91,22 @@ tasks:
       Overridable variables:
         namespace         — target Kubernetes namespace  (default: test)
         helm_release_name — Helm release name            (default: services)
+        context           — kubectl context to use       (default: docker-desktop)
 
       Examples:
         task cluster:deploy
         task cluster:deploy namespace=staging
         task cluster:deploy namespace=staging helm_release_name=my-release
+        task cluster:deploy context=my-aks-cluster namespace=production
 
       Requires the image to be built first:
         task build
     vars:
       namespace: "{{.namespace}}"
       helm_release_name: "{{.helm_release_name}}"
-      current_context:
-        sh: kubectl config current-context
-    prompt: "kubectl context is '{{.current_context}}', namespace is '{{.namespace}}'. Are you sure you want to proceed?"
-    cmd: helm upgrade --install {{.helm_release_name}} ./kubernetes/charts/services --values {{.helm_values_file}} --namespace {{.namespace}} --create-namespace
+      context: '{{.context | default "docker-desktop"}}'
+    prompt: "kubectl context is '{{.context}}', namespace is '{{.namespace}}'. Are you sure you want to proceed?"
+    cmd: helm upgrade --install {{.helm_release_name}} ./kubernetes/charts/services --values {{.helm_values_file}} --namespace {{.namespace}} --create-namespace --kube-context {{.context}}
 
   cluster:remove:
     desc: Uninstall the Helm release from the cluster.
