@@ -6,6 +6,7 @@ dotenv:
 vars:
   helm_release_name: "services"
   helm_values_file: "kubernetes/values.test.yaml"
+  k8s_context: "docker-desktop"
   namespace: "test"
 
 includes:
@@ -91,7 +92,7 @@ tasks:
       Overridable variables:
         namespace         — target Kubernetes namespace  (default: test)
         helm_release_name — Helm release name            (default: services)
-        context           — kubectl context to use       (default: docker-desktop)
+        context           — kubectl context to use       (default: k8s_context)
 
       Examples:
         task cluster:deploy
@@ -104,7 +105,7 @@ tasks:
     vars:
       namespace: "{{.namespace}}"
       helm_release_name: "{{.helm_release_name}}"
-      context: '{{.context | default "docker-desktop"}}'
+      context: '{{.context | default .k8s_context}}'
     prompt: "kubectl context is '{{.context}}', namespace is '{{.namespace}}'. Are you sure you want to proceed?"
     cmd: helm upgrade --install {{.helm_release_name}} ./kubernetes/charts/services --values {{.helm_values_file}} --namespace {{.namespace}} --create-namespace --kube-context {{.context}}
 
@@ -119,14 +120,18 @@ tasks:
       Overridable variables:
         namespace         — target Kubernetes namespace  (default: test)
         helm_release_name — Helm release name            (default: services)
+        context           — kubectl context to use       (default: k8s_context)
 
       Examples:
         task cluster:remove
         task cluster:remove namespace=staging helm_release_name=my-release
+        task cluster:remove context=my-aks-cluster namespace=production
     vars:
       namespace: "{{.namespace}}"
       helm_release_name: "{{.helm_release_name}}"
-    cmd: helm uninstall {{.helm_release_name}} --namespace {{.namespace}}
+      context: '{{.context | default .k8s_context}}'
+    prompt: "kubectl context is '{{.context}}', namespace is '{{.namespace}}'. Are you sure you want to proceed?"
+    cmd: helm uninstall {{.helm_release_name}} --namespace {{.namespace}} --kube-context {{.context}}
 
   cluster:nginx_ingress:
     desc: Deploy the nginx Ingress controller to the cluster (one-time setup).
@@ -138,9 +143,15 @@ tasks:
       Only needs to be run once per cluster. Re-running it is safe — kubectl apply
       is idempotent.
 
+      Overridable variables:
+        context — kubectl context to use  (default: k8s_context)
+
       After running, wait for the controller pod to become ready:
         kubectl get pods -n ingress-nginx -w
-    cmd: kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/cloud/deploy.yaml
+    vars:
+      context: '{{.context | default .k8s_context}}'
+    prompt: "kubectl context is '{{.context}}'. Are you sure you want to proceed?"
+    cmd: kubectl apply --context {{.context}} -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/cloud/deploy.yaml
 
   cluster:tls_secret:
     desc: Create or replace the TLS Secret in the cluster.
@@ -151,6 +162,9 @@ tasks:
       Any flags accepted by cluster_tls.sh can be forwarded via CLI_ARGS:
         task cluster:tls_secret -- --cert-name myservice --secret-name myservice-tls --namespace staging
 
+      Overridable variables:
+        context — kubectl context to use  (default: k8s_context)
+
       Default values (from cluster_tls.sh):
         --cert-name    server_cert
         --secret-name  tls-secret
@@ -159,7 +173,10 @@ tasks:
       The certificate files must already exist in scripts/tls/certs/.
       Generate them first if needed:
         cd scripts/tls && ./create_certs.sh
+    vars:
+      context: '{{.context | default .k8s_context}}'
+    prompt: "kubectl context is '{{.context}}'. Are you sure you want to proceed?"
     cmd:
       task: tls:push
       vars:
-        CLI_ARGS: "{{.CLI_ARGS}}"
+        CLI_ARGS: "--context {{.context}} {{.CLI_ARGS}}"
