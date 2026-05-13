@@ -53,7 +53,7 @@ from enum import StrEnum
 from typing import Any
 
 import httpx
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, ValidationError
@@ -182,7 +182,9 @@ _RETRY_PROMPT = (
 )
 
 
-async def _generate_verdict(messages: list[dict[str, str]], state: GuardrailState) -> JudgeVerdict:
+async def _generate_verdict(
+    messages: list[dict[str, str]], state: GuardrailState
+) -> JudgeVerdict:
     history = list(messages)
     last_error: Exception | None = None
     content: str = ""
@@ -211,7 +213,9 @@ async def _generate_verdict(messages: list[dict[str, str]], state: GuardrailStat
                 {"role": "assistant", "content": content},
                 {"role": "user", "content": _RETRY_PROMPT},
             ]
-    raise RuntimeError(f"Guardrail failed after {_MAX_RETRIES} attempts") from last_error
+    raise RuntimeError(
+        f"Guardrail failed after {_MAX_RETRIES} attempts"
+    ) from last_error
 
 
 # ---------------------------------------------------------------------------
@@ -268,12 +272,14 @@ async def _evaluate(
     event = body.current_event
 
     if not state.model_name or not state.url:
-        reason = f"LLM provider not configured for {guardrail_name}. Use the admin UI to set model_name, url, and optionally api_key."
-        print(f"[guardrail] {guardrail_name}: {reason}")
-        return _make_hook_result(copy.deepcopy(event), True, reason, guardrail_name)
+        detail = f"LLM provider not configured for {guardrail_name}: model_name and url are required. Use the admin UI to set them."
+        print(f"[guardrail] {guardrail_name}: {detail}")
+        raise HTTPException(status_code=503, detail=detail)
 
     event_type = event.get("event_type", "event")
-    content_text = "\n".join((part.get("text") or "") for part in event.get("content", []))
+    content_text = "\n".join(
+        (part.get("text") or "") for part in event.get("content", [])
+    )
 
     messages: list[dict[str, str]] = [
         {"role": "system", "content": _SYSTEM_PROMPT.format(policy=state.policy)},
@@ -310,9 +316,11 @@ async def _evaluate(
             output_event["is_partial"] = False
             passed = False
         case Verdict.MODIFIED:
-            output_event["content"] = [{"text": verdict.output}]
+            modified_warning = f"\n\nNote: The original content was modified by the {guardrail_name} guardrail to comply with the policy."
+            task = verdict.output + modified_warning
+            output_event["content"] = [{"task": task}]
             if output_event["event_type"] == "agent_start":
-                output_event["action"]["parameters"] = {"task": verdict.output}
+                output_event["action"]["parameters"] = {"task": task}
 
             passed = False
         case _:
@@ -457,12 +465,13 @@ async def get_output_custom_ui_metadata() -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Shared admin UI template  
+# Shared admin UI template
 # ---------------------------------------------------------------------------
 
 
-
-def _render_admin_ui(title: str, subtitle: str, post_path: str, state: GuardrailState) -> str:
+def _render_admin_ui(
+    title: str, subtitle: str, post_path: str, state: GuardrailState
+) -> str:
     policy_val = state.policy or ""
     model_val = state.model_name or ""
     url_val = state.url or ""
