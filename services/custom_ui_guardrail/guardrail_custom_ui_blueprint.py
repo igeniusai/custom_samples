@@ -55,7 +55,7 @@ from pathlib import Path
 from typing import Any
 
 import httpx
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field, ValidationError
@@ -269,6 +269,19 @@ def _make_hook_result(
     }
 
 
+def _make_hook_error(error_code: str, error_message: str) -> dict[str, Any]:
+    return {
+        "success": False,
+        "error": {"error_code": error_code, "error_message": error_message},
+        "emitted_content": {
+            "name": "Guardrail Error",
+            "passed": False,
+            "error_occurred": True,
+            "reason": error_message,
+        },
+    }
+
+
 async def _evaluate(
     body: GuardrailRequest,
     state: GuardrailState,
@@ -277,9 +290,9 @@ async def _evaluate(
     event = body.current_event
 
     if not state.model_name or not state.url:
-        detail = f"LLM provider not configured for {guardrail_name}: model_name and url are required. Use the admin UI to set them."
-        print(f"[guardrail] {guardrail_name}: {detail}")
-        raise HTTPException(status_code=503, detail=detail)
+        msg = f"LLM provider not configured for {guardrail_name}: model_name and url are required. Use the admin UI to set them."
+        print(f"[guardrail] {guardrail_name}: {msg}")
+        return _make_hook_error("llm_not_configured", msg)
 
     event_type = event.get("event_type", "event")
     content_text = "\n".join(
@@ -302,13 +315,13 @@ async def _evaluate(
         else:
             print(f"[guardrail] {guardrail_name} verdict NOT saved — turn_id is None")
     except httpx.HTTPStatusError as exc:
-        error = f"LLM provider returned HTTP {exc.response.status_code}: {exc.response.text[:200]}"
-        print(f"[guardrail] {guardrail_name} error: {error}")
-        return _make_hook_result(copy.deepcopy(event), True, error, guardrail_name)
+        msg = f"LLM provider returned HTTP {exc.response.status_code}: {exc.response.text[:200]}"
+        print(f"[guardrail] {guardrail_name} error: {msg}")
+        return _make_hook_error("llm_http_error", msg)
     except Exception as exc:
-        error = str(exc)
-        print(f"[guardrail] {guardrail_name} error: {error}")
-        return _make_hook_result(copy.deepcopy(event), True, error, guardrail_name)
+        msg = str(exc)
+        print(f"[guardrail] {guardrail_name} error: {msg}")
+        return _make_hook_error("guardrail_error", msg)
 
     output_event = copy.deepcopy(event)
 
@@ -328,7 +341,7 @@ async def _evaluate(
         case Verdict.MODIFIED:
             modified_warning = f"\n\nNote: The original content was modified by the {guardrail_name} guardrail to comply with the policy."
             task = verdict.output + modified_warning
-            output_event["content"] = [{"task": task}]
+            output_event["content"] = [{"text": task}]
             if output_event["event_type"] == "agent_start":
                 output_event["action"]["parameters"] = {"task": task}
 
