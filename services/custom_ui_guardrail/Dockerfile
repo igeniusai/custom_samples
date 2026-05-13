@@ -5,7 +5,8 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY guardrail_custom_ui_blueprint.py admin_ui_template.html ./
+COPY guardrail_custom_ui_blueprint.py ./
+COPY templates/ ./templates/
 
 EXPOSE 8080
 
