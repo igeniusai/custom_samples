@@ -54,6 +54,7 @@ from typing import Any
 
 import httpx
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, ValidationError
 from pydantic_settings import BaseSettings
@@ -336,6 +337,14 @@ async def _update_config(body: GuardrailState, state: GuardrailState) -> dict:
 # ---------------------------------------------------------------------------
 
 app = FastAPI(title="Dual Judge Guardrail", version="0.1.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 # ── Input guardrail ─────────────────────────────────────────────────────────
