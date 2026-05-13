@@ -259,13 +259,6 @@ def _make_hook_result(
     }
 
 
-def _make_error_result(error_code: str, error_message: str) -> dict[str, Any]:
-    return {
-        "error_code": error_code,
-        "error_message": error_message,
-    }
-
-
 async def _evaluate(
     body: GuardrailRequest,
     state: GuardrailState,
@@ -274,10 +267,9 @@ async def _evaluate(
     event = body.current_event
 
     if not state.model_name or not state.url:
-        return _make_error_result(
-            "llm_not_configured",
-            f"LLM provider not configured for {guardrail_name}. Use the admin UI to set model_name, url, and optionally api_key.",
-        )
+        reason = f"LLM provider not configured for {guardrail_name}. Use the admin UI to set model_name, url, and optionally api_key."
+        print(f"[guardrail] {guardrail_name}: {reason}")
+        return _make_hook_result(copy.deepcopy(event), True, reason, guardrail_name)
 
     event_type = event.get("event_type", "event")
     content_text = "\n".join((part.get("text") or "") for part in event.get("content", []))
@@ -295,11 +287,11 @@ async def _evaluate(
     except httpx.HTTPStatusError as exc:
         error = f"LLM provider returned HTTP {exc.response.status_code}: {exc.response.text[:200]}"
         print(f"[guardrail] {guardrail_name} error: {error}")
-        return _make_error_result("llm_http_error", error)
+        return _make_hook_result(copy.deepcopy(event), True, error, guardrail_name)
     except Exception as exc:
         error = str(exc)
         print(f"[guardrail] {guardrail_name} error: {error}")
-        return _make_error_result("guardrail_error", error)
+        return _make_hook_result(copy.deepcopy(event), True, error, guardrail_name)
 
     output_event = copy.deepcopy(event)
 
@@ -307,14 +299,20 @@ async def _evaluate(
         case Verdict.APPROVED:
             passed = True
         case Verdict.REJECTED:
-            output_event = _make_event(
-                "response",
-                guardrail_name,
-                verdict.output or "Your message was blocked by the system.",
-            )
+            output_event["event_type"] = "response"
+            output_event["author"] = guardrail_name
+            output_event["content"] = [
+                {"text": verdict.output or "Your message was blocked by the system."}
+            ]
+            output_event["timestamp"] = datetime.now().isoformat()
+            output_event["event_id"] = str(uuid.uuid4())
+            output_event["is_partial"] = False
             passed = False
         case Verdict.MODIFIED:
             output_event["content"] = [{"text": verdict.output}]
+            if output_event["event_type"] == "agent_start":
+                output_event["action"]["parameters"] = {"task": verdict.output}
+
             passed = False
         case _:
             passed = True
@@ -739,4 +737,4 @@ def _render_admin_ui(title: str, subtitle: str, post_path: str, state: Guardrail
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=9001, log_level="info")
+    uvicorn.run(app, host="0.0.0.0", port=8080, log_level="info")
