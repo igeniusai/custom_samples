@@ -51,6 +51,22 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
+Build a per-component resource name truncated to 63 chars: <fullname>-<component>.
+Usage: include "service.componentName" (dict "root" $ "component" .name)
+*/}}
+{{- define "service.componentName" -}}
+{{- printf "%s-%s" (include "service.fullname" .root) .component | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{/*
+Build a per-expose Service name truncated to 63 chars: <fullname>-<component>-<expose>.
+Usage: include "service.exposeName" (dict "root" $ "component" $svc.name "expose" .name)
+*/}}
+{{- define "service.exposeName" -}}
+{{- printf "%s-%s-%s" (include "service.fullname" .root) .component .expose | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{/*
 Build a fully-qualified image reference for a service entry.
 Usage: include "service.image" (dict "image" .image "defaultTag" $.Chart.AppVersion)
 */}}

@@ -3,7 +3,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "service.fullname" $ }}-{{ .name }}
+  name: {{ include "service.componentName" (dict "root" $ "component" .name) }}
   labels:
     {{- include "service.labels" $ | nindent 4 }}
     app.kubernetes.io/component: {{ .name }}
