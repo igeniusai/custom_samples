@@ -180,3 +180,39 @@ tasks:
       task: tls:push
       vars:
         CLI_ARGS: "--context {{.context}} {{.CLI_ARGS}}"
+
+  domyn-cli:install:
+    desc: Install the domyn CLI via pipx.
+    summary: |
+      Installs the domyn CLI from the local ./domyn-cli/ directory as an editable
+      pipx package, making the `domyn` binary available on your $PATH.
+
+      Run this once after cloning the repository. Re-running it is safe — pipx
+      will reinstall if the package is already present.
+
+      After installation verify it works with:
+        domyn --version
+    cmd: pipx install -e ./domyn-cli/
+
+  domyn-cli:update:
+    desc: Reinstall the domyn CLI to pick up local code changes.
+    summary: |
+      Reinstalls the domyn CLI via pipx, refreshing the installed binary with
+      any changes made to the source code under ./domyn-cli/.
+
+      Use this after pulling new commits that include CLI changes, or after
+      modifying the CLI source locally.
+
+        task domyn-cli:update
+    cmd: pipx reinstall domyn
+
+  domyn-cli:remove:
+    desc: Uninstall the domyn CLI from the system.
+    summary: |
+      Removes the domyn CLI and its isolated pipx environment from the system.
+      The `domyn` binary will no longer be available on your $PATH.
+
+      To reinstall afterwards:
+        task domyn-cli:install
+    prompt: "This will remove the domyn CLI from your system. Are you sure?"
+    cmd: pipx uninstall domyn
