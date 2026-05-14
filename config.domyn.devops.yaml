@@ -1,7 +1,7 @@
 dns:
-  postfix: "local"
+  postfix: "devopscluster.crystal.io"
 kubernetes: 
-  context: docker-desktop
+  context: crystal-devops-azure-eu
 helm:
   chart: ./kubernetes/charts/services
   namespace: test
