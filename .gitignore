@@ -1,1 +1,7 @@
 .env
+.venv.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Pythonservices/custom_ui_guardrail/data/
