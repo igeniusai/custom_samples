@@ -17,6 +17,6 @@ COPY templates/ templates/
 # Install the project itself (registers the `serve` console script)
 RUN uv sync --frozen
 
-EXPOSE 9001
+EXPOSE 8080
 
-CMD ["uv", "run", "uvicorn", "guardrail_custom_ui_blueprint:app", "--host", "0.0.0.0", "--port", "9001"]
+CMD ["uv", "run", "uvicorn", "guardrail_custom_ui_blueprint:app", "--host", "0.0.0.0", "--port", "8080"]
