@@ -6,6 +6,29 @@ tasks:
     silent: true
     cmd: task --list
 
+  cluster:nginx-ingress:
+    desc: Deploy the nginx Ingress controller to the cluster (one-time setup).
+    summary: |
+      Applies the official nginx Ingress controller manifest to the cluster
+      using the current kubectl context.
+
+      Only needs to be run once per cluster. Re-running it is safe — kubectl
+      apply is idempotent.
+
+      After running, wait for the controller pod to become ready:
+        kubectl get pods -n ingress-nginx -w
+
+      Overridable variables:
+        context — kubectl context to use (default: current context)
+
+      Examples:
+        task cluster:nginx-ingress
+        task cluster:nginx-ingress context=my-aks-cluster
+    vars:
+      context: '{{.context | default "docker-desktop"}}'
+    prompt: "Deploy nginx Ingress controller to context '{{.context}}'?"
+    cmd: kubectl apply --context {{.context}} -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/cloud/deploy.yaml
+
   domyn-cli:install:
     desc: Install the domyn CLI via pipx.
     summary: |
