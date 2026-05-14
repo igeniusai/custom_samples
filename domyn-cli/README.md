@@ -170,11 +170,16 @@ domyn push my-service --tag v1.2.3
 
 ### `deploy`
 
-Deploys a service to Kubernetes using Helm.
+Deploys a service to Kubernetes using Helm. Prompts for confirmation before proceeding, showing the target context and namespace.
 
 ```bash
-domyn deploy <service>
+domyn deploy <service> [--yes]
 ```
+
+| Argument / Option | Default  | Description                                  |
+|-------------------|----------|----------------------------------------------|
+| `service`         | required | Service name — used as the Helm release name |
+| `--yes` / `-y`    | `false`  | Skip the confirmation prompt                 |
 
 The release name used by Helm is the service name. Values are merged in the following order (last wins):
 
@@ -187,6 +192,7 @@ If `dns.postfix` is set, it is forwarded to the chart via `--set dns.postfix=<va
 
 ```bash
 domyn deploy my-service
+domyn deploy my-service --yes          # skip confirmation (e.g. in CI)
 domyn --config-file staging.yaml deploy my-service
 ```
 
@@ -206,16 +212,22 @@ helm upgrade --install my-service ./kubernetes/charts/services \
 
 ### `remove`
 
-Uninstalls a Helm release from the cluster.
+Uninstalls a Helm release from the cluster. Prompts for confirmation before proceeding, showing the target context and namespace.
 
 ```bash
-domyn remove <service>
+domyn remove <service> [--yes]
 ```
+
+| Argument / Option | Default  | Description                           |
+|-------------------|----------|---------------------------------------|
+| `service`         | required | Name of the Helm release to uninstall |
+| `--yes` / `-y`    | `false`  | Skip the confirmation prompt          |
 
 **Examples**
 
 ```bash
 domyn remove my-service
+domyn remove my-service --yes          # skip confirmation (e.g. in CI)
 domyn --config-file staging.yaml remove my-service
 ```
 
