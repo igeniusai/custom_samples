@@ -1,0 +1,27 @@
+services:
+  - name: guardrail-custom-ui-example
+    image:
+      registry: "eu.gcr.io/igenius-registry"
+      repository: guardrail-custom-ui-example
+      tag: "demo1"
+      pullPolicy: Always
+    imagePullSecrets:
+      - name: vault-image-pull-secrets
+    env:
+      - name: MODEL_NAME
+        value: "Qwen/Qwen3-32B"
+      - name: URL
+        value: "https://gateway-dev.llm.crystal.ai/v1/chat/completions"
+      # - name: API_KEY
+      #   valueFrom:
+      #     secretKeyRef:
+      #       name: guardrail-custom-ui-example
+      #       key: VLLM_API_KEY
+    expose:
+      - name: http
+        type: ClusterIP
+        ports:
+          - port: 8080
+            targetPort: 80
+            name: http-lb
+            protocol: TCP
