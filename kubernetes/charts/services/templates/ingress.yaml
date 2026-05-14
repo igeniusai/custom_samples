@@ -33,14 +33,15 @@ metadata:
     {{- end }}
 spec:
   ingressClassName: {{ .ingress.ingressClass | default "nginx" }}
+  {{- $host := ternary (printf "%s.%s" .ingress.host $.Values.dns.postfix) .ingress.host (ne $.Values.dns.postfix "") }}
   {{- if and .ingress.tls .ingress.tls.enabled }}
   tls:
     - hosts:
-        - {{ .ingress.host }}
+        - {{ $host }}
       secretName: {{ .ingress.tls.secretName | default (printf "%s-%s-tls" (include "service.fullname" $) .name | trunc 63 | trimSuffix "-") }}
   {{- end }}
   rules:
-    - host: {{ .ingress.host }}
+    - host: {{ $host }}
       http:
         paths:
           - path: /

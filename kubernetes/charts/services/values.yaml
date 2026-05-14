@@ -1,5 +1,8 @@
 replicaCount: 1
 
+dns:
+  postfix: ""
+
 imagePullSecrets: []
 
 serviceAccount:
@@ -7,6 +10,8 @@ serviceAccount:
   automount: true
   annotations: {}
   name: ""
+
+forceRestart: false
 
 podAnnotations: {}
 podLabels: {}
@@ -63,7 +68,7 @@ services:
       registry: ""
       repository: service
       tag: "latest"
-      pullPolicy: IfNotPresent
+      pullPolicy: Always
     imagePullSecrets: []
     # imagePullSecrets:
     #   - name: my-registry-secret
