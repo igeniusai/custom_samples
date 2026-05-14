@@ -1,0 +1,31 @@
+forceRestart: true
+services:
+  - name: example2
+    image:
+      registry: "eu.gcr.io/igenius-registry"
+      repository: example2
+      tag: "latest"
+      pullPolicy: Always
+    imagePullSecrets:
+      - name: image-pull-secrets
+    env:
+      - name: EXPOSE_SERVEO
+        value: "false"
+    expose:
+      - name: external1
+        type: LoadBalancer
+        ports:
+          - port: 8888
+            targetPort: 80
+            name: http-lb
+            protocol: TCP
+    ingress:
+      enabled: true
+      host: "example2"
+      ingressClass: nginx
+      portName: http
+      exposeName: ""
+      targetPort: 8080
+      tls:
+        enabled: true
+        secretName: "tls-secret-example2"

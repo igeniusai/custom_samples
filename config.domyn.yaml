@@ -1,0 +1,15 @@
+dns:
+  postfix: "devopscluster.crystal.io"
+kubernetes: 
+  context: crystal-devops-azure-eu
+helm:
+  chart: ./kubernetes/charts/services
+  namespace: test
+  # values_files: 
+  #   - ./kubernetes/values.test.yaml
+registries: 
+  - eu.gcr.io/igenius-registry
+containers:
+  platform: "linux/amd64"
+services:
+  path: ./services/

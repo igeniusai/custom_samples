@@ -1,0 +1,21 @@
+services:
+  - name: custom-ui-guardrail
+    image:
+      registry: "eu.gcr.io/igenius-registry"
+      repository: custom-ui-guardrail
+      tag: "demo1"
+      pullPolicy: Always
+    imagePullSecrets:
+      - name: vault-image-pull-secrets
+    ingress:
+      enabled: true
+      host: "blueprint"
+      ingressClass: "nginx"
+      annotations:
+        cert-manager.io/cluster-issuer: "letsencrypt"
+      portName: http
+      exposeName: "http"
+      targetPort: 8080
+      tls:
+        enabled: true
+        secretName: "tls-blueprint"

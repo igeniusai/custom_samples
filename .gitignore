@@ -1,1 +1,20 @@
 .env
+domyn.env
+
+# Python packaging
+*.egg-info/
+*.egg
+build/
+dist/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
