@@ -2,5 +2,5 @@ services:
   custom-ui-guardrail:
     build: .
     ports:
-      - "9001:9001"
+      - "8080:8080"
     restart: unless-stopped
