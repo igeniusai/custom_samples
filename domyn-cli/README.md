@@ -2,6 +2,21 @@
 
 A command-line tool to build, push, and deploy containerized services to a Kubernetes cluster using Docker and Helm.
 
+## Requirements
+
+- [Docker](https://docs.docker.com/get-docker/) — required for `build` and `push`
+- [Helm](https://helm.sh/docs/intro/install/) — required for `deploy` and `remove`
+- [kubectl](https://kubernetes.io/docs/tasks/tools/) — must be installed and configured with a context pointing at the target cluster
+
+Verify kubectl is pointing at the right cluster before running `deploy` or `remove`:
+
+```bash
+kubectl config current-context
+kubectl config use-context <your-cluster-context>
+```
+
+---
+
 ## Installation
 
 ```bash

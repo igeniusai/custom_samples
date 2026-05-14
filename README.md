@@ -1,253 +1,167 @@
 # README
 
-A template for containerizing and deploying one or more services — locally with Docker Compose or to a Kubernetes cluster with Helm.
+A template for containerizing and deploying one or more services to a Kubernetes cluster using the **domyn CLI**.
 
 ## Requirements
 
-- [Docker](https://docs.docker.com/get-docker/) with Compose v2 (`docker compose` command available)
-- [Task](https://taskfile.dev/installation/) for running tasks
+- [Docker](https://docs.docker.com/get-docker/)
 - [Helm](https://helm.sh/docs/intro/install/) for cluster deployments
 - [kubectl](https://kubernetes.io/docs/tasks/tools/) for cluster operations
+- [pipx](https://pipx.pypa.io/stable/installation/) to install the domyn CLI
+- [Task](https://taskfile.dev/installation/) *(optional)* for CLI lifecycle shortcuts
 
-See [PREREQUISITE.md](PREREQUISITE.md) for full setup instructions including registry configuration, cluster options, and TLS setup.
+See [PREREQUISITE.md](PREREQUISITE.md) for full setup instructions including registry configuration and cluster options.
+
+---
+
+## Installing the domyn CLI
+
+```bash
+task domyn-cli:install
+```
+
+Or without Task:
+
+```bash
+pipx install -e ./domyn-cli/
+```
+
+Verify the installation:
+
+```bash
+domyn --version
+```
+
+See [domyn-cli/README.md](domyn-cli/README.md) for the full CLI reference.
+
+---
 
 ## Project structure
 
 ```text
 .
 ├── services/
-│   ├── example1/                          # nginx static file server
-│   ├── example2/                          # MCP ESG investment demo (FastAPI + FastMCP)
-│   ├── langgraph_agent_example/           # LangGraph agent example
-│   ├── langgraph_deterministic_graph_example/ # LangGraph deterministic graph example
-│   ├── custom_ui_guardrail/               # Guardrail with custom admin UI
-│   └── minimal_guardrail/                 # Minimal guardrail example
+│   ├── example1/          # example service — contains Dockerfile + values.yaml
+│   ├── example2/          # example service — contains Dockerfile + values.yaml
+│   └── ...                # add your own service folders here
 ├── kubernetes/
 │   ├── charts/
-│   │   └── services/         # Helm chart
+│   │   └── services/      # Helm chart used by `domyn deploy`
 │   │       ├── Chart.yaml
 │   │       ├── templates/
-│   │       └── values.yaml   # Chart defaults
-│   ├── manifest/             # Raw Kubernetes manifests (e.g. secrets)
-│   ├── values.test.yaml      # Override values for local cluster deploys
-│   └── values.blueprint.yaml # Override values for production/remote cluster deploys
-├── scripts/
-│   ├── example/
-│   │   └── pull.sh           # Update example service source code
-│   └── tls/                  # TLS certificate generation and cluster secret management
-│       ├── create_certs.sh
-│       ├── cluster_tls.sh
-│       ├── Taskfile.yaml
-│       └── certs/
-├── .env                      # Environment variables loaded by Taskfile
-├── Compose.yaml
-├── Taskfile.yaml
-└── PREREQUISITE.md           # Full setup and prerequisites guide
+│   │       └── values.yaml
+│   └── values.*.yaml      # shared override values files
+├── domyn-cli/             # domyn CLI source
+│   ├── domyn/main.py
+│   └── README.md
+├── config.domyn.yaml      # domyn CLI configuration (read by all commands)
+└── Taskfile.yaml          # CLI lifecycle shortcuts (install / update / remove)
 ```
+
+---
+
+## Configuration
+
+All domyn commands read `config.domyn.yaml` from the current working directory.
+
+```yaml
+services:
+  path: ./services/
+
+containers:
+  platform: linux/amd64   # optional — forwarded to docker build as --platform
+
+registries:
+  - eu.gcr.io/my-registry
+
+dns:
+  postfix: .example.com   # optional — appended to all ingress hosts
+
+helm:
+  chart: ./kubernetes/charts/services
+  namespace: production
+  values_files:           # optional — extra values files merged after service values
+    - ./kubernetes/values.base.yaml
+
+kubernetes:
+  context: my-cluster-context
+```
+
+---
 
 ## Quick start
 
-### Local
-
 ```bash
-task build
-task local:deploy
-# visit http://localhost:8080
-```
+# 1. Install the CLI
+task domyn-cli:install
 
-Or without Task:
+# 2. List available services
+domyn services
 
-```bash
-docker compose build
-docker compose up -d
-# visit http://localhost:8080
-```
+# 3. Build and push an image
+domyn build my-service --tag v1.0.0
+domyn push  my-service --tag v1.0.0
 
-### Cluster (Docker Desktop)
-
-```bash
-task build
-task cluster:nginx_ingress   # first time only — installs the nginx Ingress controller
-task cluster:deploy
-```
-
-Or without Task:
-
-```bash
-docker compose build
-kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/cloud/deploy.yaml
-helm upgrade --install services ./kubernetes/charts/services --values kubernetes/values.test.yaml --namespace test --create-namespace --kube-context docker-desktop
+# 4. Deploy to the cluster
+domyn deploy my-service
 ```
 
 ---
 
-## Local deployment
+## Workflow
 
-### Build and start
+### Build
+
+Builds the Docker image for a service. The `Dockerfile` must exist inside `<services.path>/<service>/`.
 
 ```bash
-task build
-task local:deploy
+domyn build <service>
+domyn build <service> --tag v1.2.3
 ```
 
-Or without Task:
+### Push
+
+Tags the local image and pushes it to every registry listed in `config.domyn.yaml`.
 
 ```bash
-docker compose build
-docker compose up -d
-```
-
-The server will be available at `http://localhost:8080`.
-
-### Stop
-
-```bash
-task local:remove
-```
-
-Or without Task:
-
-```bash
-docker compose down
-```
-
-### View logs
-
-```bash
-docker compose logs -f
-```
-
-### Test
-
-```bash
-task local:test
-```
-
-Or without Task:
-
-```bash
-curl -v --resolve "localhost:8080:127.0.0.1" "http://localhost:8080"
-```
-
-Sends a `curl` request to `localhost:8080` and prints the response.
-
----
-
-## Cluster deployment
-
-Requires a running Kubernetes cluster (e.g. Docker Desktop with Kubernetes enabled).
-
-### Install the Nginx Ingress controller (first time only)
-
-```bash
-task cluster:nginx_ingress
-```
-
-Or without Task:
-
-```bash
-kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/cloud/deploy.yaml
-```
-
-This deploys the nginx Ingress controller to the cluster. Only needed once per cluster.
-
-### Build the image
-
-The cluster uses the locally built image (`imagePullPolicy: Never`), so build it first:
-
-```bash
-task build
-```
-
-Or without Task:
-
-```bash
-docker compose build
+domyn push <service>
+domyn push <service> --tag v1.2.3
 ```
 
 ### Deploy
 
+Deploys a service to Kubernetes via Helm. Uses the release name `<service>` and merges values in this order:
+
+1. `<services.path>/<service>/values.yaml` — service-specific values
+2. Files listed under `helm.values_files` — shared/environment overrides
+
 ```bash
-task cluster:deploy
+domyn deploy <service>
 ```
 
-Or without Task:
+### Remove
+
+Uninstalls the Helm release from the cluster.
 
 ```bash
-helm upgrade --install services ./kubernetes/charts/services --values kubernetes/values.test.yaml --namespace test --create-namespace --kube-context docker-desktop
-```
-
-Installs (or upgrades) the Helm release `services` into the `test` namespace, creating it if it does not exist. The task will prompt for confirmation before applying, showing the active context and namespace.
-
-Override the namespace, release name, or kubectl context:
-
-```bash
-task cluster:deploy namespace=staging
-task cluster:deploy namespace=staging helm_release_name=my-release
-task cluster:deploy context=my-aks-cluster namespace=production
-# without Task:
-helm upgrade --install my-release ./kubernetes/charts/services --values kubernetes/values.test.yaml --namespace staging --create-namespace --kube-context my-aks-cluster
-```
-
-### Uninstall
-
-```bash
-task cluster:remove
-```
-
-Or without Task:
-
-```bash
-helm uninstall services --namespace test
+domyn remove <service>
 ```
 
 ---
 
 ## Configuring deployments
 
-All deployments are driven by `kubernetes/values.test.yaml`. The chart schema is documented in `kubernetes/charts/services/values.yaml`.
+Each service folder must contain a `values.yaml` that configures how it is deployed. The full schema is documented in [`kubernetes/charts/services/values.yaml`](kubernetes/charts/services/values.yaml).
 
-### Service entry structure
-
-Each entry in the `services` list produces one **Deployment** and one or more **Kubernetes Service** objects.
+### Minimal example
 
 ```yaml
 services:
-  - name: api
+  - name: my-service
     image:
-      registry: ghcr.io/myorg   # omit for local images
-      repository: api
-      tag: "1.0.0"
-      pullPolicy: IfNotPresent
-    expose:
-      - name: external
-        type: LoadBalancer
-        ports:
-          - port: 8080       # port on the Kubernetes Service
-            targetPort: 80   # container port
-            name: http
-            protocol: TCP
-    ingress:
-      enabled: false
-      host: ""
-      ingressClass: nginx
-      portName: http
-      exposeName: ""         # defaults to the first expose entry
-      tls:
-        enabled: false
-        secretName: ""
-```
-
-### Multiple Kubernetes Services per deployment
-
-A single deployment can be exposed through several Service objects — for example an external `LoadBalancer` and an internal `ClusterIP`:
-
-```yaml
-services:
-  - name: api
-    image:
-      repository: api
+      repository: my-service
       tag: "latest"
+      pullPolicy: Always
     expose:
       - name: external
         type: LoadBalancer
@@ -256,79 +170,27 @@ services:
             targetPort: 80
             name: http
             protocol: TCP
-      - name: internal
-        type: ClusterIP
-        ports:
-          - port: 80
-            targetPort: 80
-            name: http
-            protocol: TCP
 ```
 
-Each expose entry creates a Service named `<release>-<app>-<expose.name>`.
-
-### Multiple deployments
-
-Add more entries to the `services` list; each produces its own independent Deployment:
-
-```yaml
-services:
-  - name: frontend
-    image:
-      repository: frontend
-      tag: "latest"
-    expose:
-      - name: external
-        type: LoadBalancer
-        ports:
-          - port: 3000
-            targetPort: 3000
-            name: http
-            protocol: TCP
-
-  - name: api
-    image:
-      repository: api
-      tag: "latest"
-    expose:
-      - name: external
-        type: LoadBalancer
-        ports:
-          - port: 8080
-            targetPort: 8080
-            name: http
-            protocol: TCP
-```
-
-### Ingress
-
-Enable an nginx Ingress resource to route HTTP or HTTPS traffic by hostname:
+### With ingress
 
 ```yaml
 ingress:
   enabled: true
-  host: myservice.local
+  host: my-service
   ingressClass: nginx
-  portName: http       # must match a port name in expose[*].ports
-  exposeName: external # which expose entry to use as backend; defaults to first
-```
-
-For HTTPS, also enable TLS (the Secret must exist before deploying — see [TLS](#tls--https)):
-
-```yaml
-ingress:
-  enabled: true
-  host: myservice.local
   tls:
     enabled: true
-    secretName: myservice-tls
+    secretName: my-service-tls
 ```
+
+When `dns.postfix` is set in `config.domyn.yaml`, the final host becomes `<host>.<postfix>` (e.g. `my-service.example.com`).
 
 ---
 
 ## TLS / HTTPS
 
-Scripts for generating self-signed certificates (local development only) live under `scripts/tls/`. See [scripts/tls/README.md](scripts/tls/README.md) for full documentation.
+Scripts for generating self-signed certificates live under `scripts/tls/`. See [scripts/tls/README.md](scripts/tls/README.md) for full documentation.
 
 ### 1. Generate certificates
 
@@ -345,37 +207,21 @@ sudo security add-trusted-cert -d -r trustRoot \
   scripts/tls/certs/ca.crt
 ```
 
-Then open **Keychain Access → System → Certificates**, find the CA, and confirm SSL is set to *Always Trust*. Fully restart your browser afterwards.
-
-### 3. Add a hosts entry
-
-```bash
-echo "127.0.0.1 myservice.local" | sudo tee -a /etc/hosts
-```
-
-### 4. Load the Secret into the cluster
+### 3. Load the Secret into the cluster
 
 ```bash
 ./scripts/tls/cluster_tls.sh \
   --cert-name myservice \
   --secret-name myservice-tls \
-  --namespace test
+  --namespace production
 ```
 
-Or use the task shortcut (uses defaults from `cluster_tls.sh`):
-
-```bash
-task cluster:tls_secret
-```
-
-### 5. Enable TLS in values
-
-Set `ingress.tls.enabled: true` and `ingress.tls.secretName` in `kubernetes/values.test.yaml`:
+### 4. Enable TLS in the service values.yaml
 
 ```yaml
 ingress:
   enabled: true
-  host: myservice.local
+  host: myservice
   tls:
     enabled: true
     secretName: myservice-tls
@@ -384,29 +230,8 @@ ingress:
 Then redeploy:
 
 ```bash
-task cluster:deploy
+domyn deploy myservice
 ```
-
----
-
-## Deployed services
-
-After a successful `task cluster:deploy` the following endpoints are available (assuming the default `kubernetes/values.test.yaml` and `/etc/hosts` entries pointing `127.0.0.1` at each hostname):
-
-| Service | Host | Notable endpoints |
-| --- | --- | --- |
-| example1 | `https://test1.local` | Static HTML page |
-| example2 | `https://test2.local` | MCP investment demo |
-
-### OpenAPI (example2)
-
-The example2 service exposes an interactive OpenAPI page at:
-
-```text
-https://test2.local/docs
-```
-
-Open it in a browser after deploying to explore the available API endpoints.
 
 ---
 
@@ -414,23 +239,6 @@ Open it in a browser after deploying to explore the available API endpoints.
 
 | Task | Description |
 | --- | --- |
-| `task build` | Build all Docker images via `docker compose build` |
-| `task update` | Update example service source code |
-| `task local:deploy` | Start the stack locally with Docker Compose |
-| `task local:remove` | Stop and remove the local stack |
-| `task local:test` | Curl `localhost:8080` to verify the local deployment |
-| `task cluster:deploy` | Install or upgrade the Helm release (prompts for confirmation) |
-| `task cluster:remove` | Uninstall the Helm release |
-| `task cluster:nginx_ingress` | Deploy the nginx Ingress controller (first time only) |
-| `task cluster:tls_secret` | Create the TLS Secret in the cluster |
-
----
-
-## Using this repo as a template
-
-The [services/example1/](services/example1/) directory contains a working nginx static file server and [services/example2/](services/example2/) contains a FastAPI + MCP service. See their respective READMEs for details. To ship your own service:
-
-1. **Add your app** — create a new directory under `services/` with your application code and a `DOCKERFILE`.
-2. **Update Compose.yaml** — point the `build.context` at your new directory and set the `image` name.
-3. **Update `kubernetes/values.test.yaml`** — add an entry to the `services` list with your image, ports, and any ingress or TLS configuration.
-4. **Rebuild** — run `task build` after any code change to produce a fresh image.
+| `task domyn-cli:install` | Install the domyn CLI via pipx |
+| `task domyn-cli:update` | Reinstall to pick up local code changes |
+| `task domyn-cli:remove` | Uninstall the domyn CLI |
