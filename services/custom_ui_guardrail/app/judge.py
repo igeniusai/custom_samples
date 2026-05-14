@@ -29,7 +29,7 @@ from app.models import GuardrailRequest
 
 _SYSTEM_PROMPT = """\
 You are a content-safety judge for an agentic system. \
-Evaluate whether the provided text complies with the policy below, \
+Review the provided text and apply the policy below if needed, \
 then return a verdict.
 
 POLICY:
