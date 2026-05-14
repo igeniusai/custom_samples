@@ -20,4 +20,15 @@ tasks:
     summary: |
       Deletes (if present) and recreates the TLS Secret in the target namespace.
       The --cert-name flag must match the one used in the create task.
-    cmd: ./cluster_tls.sh {{.CLI_ARGS}}
+
+      Overridable variables:
+        context — kubectl context to use (default: docker-desktop)
+
+      Examples:
+        task push
+        task push context=my-aks-cluster
+        task push -- --cert-name myservice --secret-name myservice-tls --namespace staging
+    vars:
+      context: '{{.context | default "docker-desktop"}}'
+    prompt: "kubectl context is '{{.context}}'. Are you sure you want to proceed?"
+    cmd: ./cluster_tls.sh --context {{.context}} {{.CLI_ARGS}}
