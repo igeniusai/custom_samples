@@ -158,7 +158,10 @@
 
     <script>
         const DATA_PATH = '${data_path}';
+        const POLL_INTERVAL_MS = 5000;
         let authHeader = null;
+        let currentMessageId = null;
+        let pollTimer = null;
 
         function applyTheme(theme) {
             document.body.classList.toggle('dark', theme === 'dark');
@@ -177,17 +180,24 @@
             if (!event.data || event.data.type !== 'params') return;
             if (event.data.theme) applyTheme(event.data.theme);
             if (event.data.authorization) authHeader = event.data.authorization;
-            fetchVerdicts(event.data.message_id || urlMessageId);
+            startPolling(event.data.message_id || urlMessageId);
         });
 
         // Fallback: if no postMessage arrives within 600 ms, use URL params directly.
         setTimeout(function() {
-            if (!authHeader) fetchVerdicts(urlMessageId);
+            if (!currentMessageId && !pollTimer) startPolling(urlMessageId);
         }, 600);
 
-        async function fetchVerdicts(messageId) {
+        function startPolling(messageId) {
+            currentMessageId = messageId;
+            if (pollTimer) clearInterval(pollTimer);
+            fetchVerdicts();
+            pollTimer = setInterval(fetchVerdicts, POLL_INTERVAL_MS);
+        }
+
+        async function fetchVerdicts() {
             const params = new URLSearchParams();
-            if (messageId) params.set('message_id', messageId);
+            if (currentMessageId) params.set('message_id', currentMessageId);
             const url = DATA_PATH + (params.toString() ? '?' + params : '');
             const headers = {};
             if (authHeader) headers['Authorization'] = authHeader;
