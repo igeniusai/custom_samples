@@ -120,6 +120,7 @@ def push(
 def deploy(
     ctx: typer.Context,
     service: str = typer.Argument(..., help="Name of the service to deploy (used as Helm release name)."),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation prompt."),
 ):
     """Deploy via Helm using kubernetes and helm settings from config.domyn.yaml."""
     cfg = load_config(ctx.obj["config_file"])
@@ -136,6 +137,12 @@ def deploy(
 
     all_values = [str(service_values)] + list(values_files)
     values_args = [arg for f in all_values for arg in ("--values", f)]
+
+    if not yes:
+        typer.confirm(
+            f"Deploy '{service}' to context '{kube_context}', namespace '{namespace}'?",
+            abort=True,
+        )
 
     dns_postfix = cfg.get("dns", {}).get("postfix")
     set_args = ["--set", f"dns.postfix={dns_postfix}"] if dns_postfix else []
@@ -157,12 +164,19 @@ def deploy(
 def remove(
     ctx: typer.Context,
     service: str = typer.Argument(..., help="Name of the Helm release to remove."),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation prompt."),
 ):
     """Remove a deployed Helm release from the cluster."""
     cfg = load_config(ctx.obj["config_file"])
 
     kube_context = cfg["kubernetes"]["context"]
     namespace = cfg["helm"]["namespace"]
+
+    if not yes:
+        typer.confirm(
+            f"Remove '{service}' from context '{kube_context}', namespace '{namespace}'?",
+            abort=True,
+        )
 
     subprocess.run(
         [
