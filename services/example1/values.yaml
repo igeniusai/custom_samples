@@ -5,9 +5,9 @@ services:
       registry: "eu.gcr.io/igenius-registry"
       repository: example1
       tag: "latest"
-      pullPolicy: Always
-    imagePullSecrets:
-      - name: image-pull-secrets
+      pullPolicy: IfNotPresent
+    # imagePullSecrets:
+    #   - name: image-pull-secrets
     # expose:
     #   - name: external1
     #     type: LoadBalancer
