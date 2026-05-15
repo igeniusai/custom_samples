@@ -29,11 +29,10 @@ blueprint/langgraph_agent/
 
 ## Step 0 — Prepare the wheel
 
-Place the `domyn_agents-*.whl` file inside the `wheels/` directory:
+Obtain the `domyn_agents-*.whl` file and place it inside the `wheels/` directory before running anything:
 
 ```bash
 ls wheels/
-# domyn_agents-1.0.57-py3-none-any.whl  (example)
 ```
 
 ---
