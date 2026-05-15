@@ -88,7 +88,10 @@ async def _call_llm(messages: list[dict[str, str]], state: GuardrailState) -> st
     async with httpx.AsyncClient(timeout=300.0) as client:
         response = await client.post(state.url, headers=headers, json=payload)  # type: ignore[arg-type]
         response.raise_for_status()
-        return response.json()["choices"][0]["message"]["content"]
+        content = response.json()["choices"][0]["message"]["content"]
+        if content is None:
+            raise ValueError("LLM Judge returned null content")
+        return content
 
 
 def _extract_json(text: str) -> str:
