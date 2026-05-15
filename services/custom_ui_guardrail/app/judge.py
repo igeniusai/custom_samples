@@ -88,7 +88,14 @@ async def _call_llm(messages: list[dict[str, str]], state: GuardrailState) -> st
     async with httpx.AsyncClient(timeout=300.0) as client:
         response = await client.post(state.url, headers=headers, json=payload)  # type: ignore[arg-type]
         response.raise_for_status()
-        return response.json()["choices"][0]["message"]["content"]
+        data = response.json()
+        choices = data.get("choices") or []
+        if not choices:
+            raise ValueError(f"LLM returned empty choices: {data}")
+        content = choices[0].get("message", {}).get("content")
+        if content is None:
+            raise ValueError(f"LLM returned null content: {choices[0]}")
+        return content
 
 
 def _extract_json(text: str) -> str:
@@ -119,9 +126,9 @@ async def _generate_verdict(
 ) -> JudgeVerdict:
     history = list(messages)
     last_error: Exception | None = None
-    content: str = ""
 
     for attempt in range(1, _MAX_RETRIES + 1):
+        content: str = ""
         try:
             content = await _call_llm(history, state)
             return JudgeVerdict.model_validate_json(_extract_json(content))
