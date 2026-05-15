@@ -1,17 +1,31 @@
-# custom_samples
+# Domyn Platform - Custom Samples
 
-Ready-to-use service blueprints for the Domyn platform.
+Ready-to-use samples showing how to develop custom guardrails and custom agents for the Domyn Platform.
 
-| Service | Description |
-|---|---|
-| [custom_ui_guardrail](services/custom_ui_guardrail/) | Dual LLM-based guardrail with admin UI and verdict history |
-| [langgraph_agent_example](services/langgraph_agent_example/) | LangGraph ReAct agent connected to Domyn as a subagent |
+| Sample | Type | Description |
+|---|---|---|
+| [Minimal guardrail](services/minimal_guardrail/) | Guardrail | Simple deterministic guardrail |
+| [LLM guardrail with custom UI](services/custom_ui_guardrail/) | Guardrail | Dual LLM-based guardrail with admin UI and verdict history |
+| [Minimal LangGraph agent](services/langgraph_deterministic_graph_example/) | Agent | Deterministic LangGraph graph connected to Domyn as a subagent |
+| [LangGraph ReAct agent](services/langgraph_agent_example/) | Agent | LangGraph ReAct agent connected to Domyn as a subagent |
 
 ---
 
-## Custom UI Guardrail
+## Production deployment
 
-> Full documentation: [services/custom_ui_guardrail/README.md](services/custom_ui_guardrail/README.md)
+This README is focused on interactive development.
+
+For detailed instructions on how to deploy the services to a production cluster, follow [DEPLOYMENT.md](DEPLOYMENT.md).
+
+> **NOTE:** The Domyn Platform will take care of most of the production deployment steps in future releases.
+
+---
+
+## Custom LLM guardrail
+
+A ready-to-run guardrail service for the Domyn platform. Exposes two independent LLM-based guardrail hooks — one for user inputs, one for agent responses — each with its own configurable policy and admin UI embedded directly in the platform canvas.
+
+> Full documentation at [services/custom_ui_guardrail/README.md](services/custom_ui_guardrail/README.md)
 
 Requires [uv](https://docs.astral.sh/uv/getting-started/installation/).
 
@@ -43,11 +57,13 @@ Both print a public HTTPS URL you can register as a hook endpoint in the Domyn p
 
 ---
 
-## LangGraph Agent Example
+## LangGraph ReAct agent
 
-> Full documentation: [services/langgraph_agent_example/README.md](services/langgraph_agent_example/README.md)
+A ready-to-run example of a LangGraph ReAct agent connected to the Domyn platform as a subagent. The agent uses an LLM (via a vLLM-compatible endpoint) and a set of built-in tools to answer tasks sent by the platform orchestrator.
 
-Requires [Docker](https://docs.docker.com/get-docker/) with the Compose plugin.
+> Full documentation at [services/langgraph_agent_example/README.md](services/langgraph_agent_example/README.md)
+
+Requires [Docker](https://docs.docker.com/get-docker/)
 
 ```bash
 cd services/langgraph_agent_example
