@@ -92,11 +92,22 @@ async def _call_llm(messages: list[dict[str, str]], state: GuardrailState) -> st
 
 
 def _extract_json(text: str) -> str:
-    """Strip markdown fences and return the first JSON object found in text."""
+    """Return the JSON payload from the LLM response.
+
+    Only strip fences if the model wrapped the *entire* response in one —
+    never strip fences that appear inside string values (e.g. ```java code
+    blocks inside the "output" field of a valid JSON).
+    """
     text = text.strip()
-    fenced = re.search(r"```(?:json)?\s*([\s\S]*?)```", text)
-    if fenced:
-        return fenced.group(1).strip()
+    try:
+        json.loads(text)
+        return text
+    except json.JSONDecodeError:
+        pass
+    if text.startswith("```"):
+        match = re.match(r"^```(?:json)?\s*\n?([\s\S]*?)\n?```\s*$", text)
+        if match:
+            return match.group(1).strip()
     brace = re.search(r"\{[\s\S]*\}", text)
     if brace:
         return brace.group(0)
