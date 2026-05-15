@@ -136,20 +136,26 @@ async def _generate_verdict(
             last_error = exc
             status = exc.response.status_code
             snippet = exc.response.text[:200]
-            print(f"[judge] attempt {attempt}/{_MAX_RETRIES} LLM returned HTTP {status}: {snippet}")
+            print(
+                f"[judge] attempt {attempt}/{_MAX_RETRIES} LLM returned HTTP {status}: {snippet}"
+            )
             if status < 500:
                 raise
             await asyncio.sleep(1.0 * attempt)
         except (ValidationError, ValueError, json.JSONDecodeError) as exc:
             last_error = exc
-            print(f"[judge] attempt {attempt}/{_MAX_RETRIES} malformed output: {exc}\nRaw: {content!r}")
+            print(
+                f"[judge] attempt {attempt}/{_MAX_RETRIES} malformed output: {exc}\nRaw: {content!r}"
+            )
             history = [
                 *history,
                 {"role": "assistant", "content": content},
                 {"role": "user", "content": _RETRY_PROMPT},
             ]
 
-    raise RuntimeError(f"Guardrail failed after {_MAX_RETRIES} attempts") from last_error
+    raise RuntimeError(
+        f"Guardrail failed after {_MAX_RETRIES} attempts"
+    ) from last_error
 
 
 # ---------------------------------------------------------------------------
@@ -261,8 +267,8 @@ async def evaluate(
 
         case Verdict.MODIFIED:
             modified_warning = (
-                f"\n\nNote: The original content was modified by the "
-                f"{guardrail_name} guardrail to comply with the policy."
+                f"\n\n*[SYSTEM NOTE - {guardrail_name}]: This content was intentionally modified to comply with policy. "
+                f"This modified version is the one that will be considered from now on.*"
             )
             task = verdict.output + modified_warning
             output_event["content"] = [{"text": task}]
