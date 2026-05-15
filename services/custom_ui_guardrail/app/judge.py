@@ -122,9 +122,9 @@ async def _generate_verdict(
 ) -> JudgeVerdict:
     history = list(messages)
     last_error: Exception | None = None
-    content: str = ""
 
     for attempt in range(1, _MAX_RETRIES + 1):
+        content: str = ""
         try:
             content = await _call_llm(history, state)
             return JudgeVerdict.model_validate_json(_extract_json(content))
