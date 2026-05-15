@@ -23,17 +23,16 @@ blueprint/
 
 - Python 3.11+ (for local/laptop runs)
 - Docker (for containerised runs and VM deployment)
-- The `domyn-agents` wheel file — obtain it from your Domyn contact and place it in `blueprint/wheels/`
+- The `domyn-agents` wheel file — place it in `wheels/`
 
 ---
 
 ## Step 0 — Prepare the wheel
 
-Place the `domyn_agents-*.whl` file inside the `wheels/` directory:
+Obtain the `domyn_agents-*.whl` file and place it inside the `wheels/` directory before running anything:
 
 ```bash
 ls wheels/
-# domyn_agents-1.0.40-py3-none-any.whl  (example)
 ```
 
 ---
