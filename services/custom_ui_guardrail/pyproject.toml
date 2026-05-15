@@ -1,0 +1,15 @@
+[project]
+name = "guardrail-custom-ui"
+version = "0.1.0"
+description = "Dual LLM-based guardrail service (input + output) with admin UI and verdict history."
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.136.1",
+    "httpx>=0.28.1",
+    "pydantic>=2.13.4",
+    "pydantic-settings>=2.14.1",
+    "uvicorn[standard]>=0.46.0",
+]
+
+[project.scripts]
+serve = "guardrail_custom_ui_blueprint:main"
