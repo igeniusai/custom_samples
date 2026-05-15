@@ -75,10 +75,12 @@ Connect to the platform:
 ```bash
 source .env
 domyn expose loan_assessment_graph:graph \
-    --channel-id  $CHANNEL_ID \
-    --space-id    $SPACE_ID \
-    --base-url    $PLATFORM_BASE_URL
+    --channel-id  $DOMYN_CHANNEL_ID \
+    --space-id    $DOMYN_SPACE_ID \
+    --base-url    $DOMYN_BASE_URL
 ```
+
+`domyn expose` accepts a `module:symbol` argument pointing to a compiled LangGraph graph object. `loan_assessment_graph` is the Python module (i.e. `loan_assessment_graph.py`) and `graph` is the compiled graph instance exported from it. Any LangGraph graph can be served this way — change the argument to point to a different module or symbol as needed.
 
 The process stays running and reconnects automatically on network drops.
 
