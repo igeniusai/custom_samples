@@ -249,7 +249,7 @@ async def evaluate(
     # ------------------------------------------------------------------
     # Build coroutines for whichever fields are present
     # ------------------------------------------------------------------
-    action = event.get("action", {})
+    action = event.get("action") or {}
     thought_text = action.get("thought")
 
     content_parts = event.get("content", [])
