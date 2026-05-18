@@ -92,7 +92,22 @@
         .verdict-card.verdict-rejected { border-left-color: #9b1c1c; }
         .verdict-card.verdict-modified { border-left-color: #92600a; }
 
-        .verdict-header { display: flex; align-items: baseline; gap: 10px; }
+        .verdict-header { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+
+        .label-chip {
+            display: inline-block;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            padding: 2px 7px;
+            border-radius: 20px;
+            background: #e4e8ee;
+            color: #5a6a7e;
+            flex-shrink: 0;
+        }
+
+        body.dark .label-chip { background: #21262d; color: #8b949e; }
 
         .badge {
             display: inline-block;
@@ -230,6 +245,9 @@
                     html += '<div class="verdict-card verdict-' + escHtml(v.verdict) + '">';
                     html += '<div class="verdict-header">';
                     html += '<span class="badge badge-' + escHtml(v.verdict) + '">' + escHtml(v.verdict) + '</span>';
+                    if (v.label) {
+                        html += '<span class="label-chip">' + escHtml(v.label) + '</span>';
+                    }
                     html += '<span class="verdict-reason">' + escHtml(v.reason) + '</span>';
                     html += '</div>';
                     if (v.output) {
