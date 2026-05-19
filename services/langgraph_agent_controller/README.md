@@ -21,10 +21,10 @@ Saves one or more configuration values. All fields are optional — only provide
   "domyn_api_key": "domyn_xxx",
   "channel_id": "abc123",
   "space_id": "uuid-here",
-  "platform_base_url": "qa.crystal.io",
+  "platform_base_url": "tenant.crystal.io",
   "vllm_api_key": "sk-xxx",
-  "vllm_base_url": "https://gateway-dev.llm.crystal.ai/v1",
-  "vllm_model": "Qwen/Qwen3-32B"
+  "vllm_base_url": "https://url-llm-gateway",
+  "vllm_model": "model-name"
 }
 ```
 
@@ -85,8 +85,8 @@ curl -X POST http://localhost:8080/update \
     "space_id": "uuid-here",
     "platform_base_url": "qa.crystal.io",
     "vllm_api_key": "sk-xxx",
-    "vllm_base_url": "https://gateway-dev.llm.crystal.ai/v1",
-    "vllm_model": "Qwen/Qwen3-32B"
+    "vllm_base_url": "https://url-llm-gateway",
+    "vllm_model": "model-name"
   }'
 
 # Start the agent
