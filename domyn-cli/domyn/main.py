@@ -138,9 +138,11 @@ def deploy(
     all_values = [str(service_values)] + list(values_files)
     values_args = [arg for f in all_values for arg in ("--values", f)]
 
+    release_name = service.replace("_", "-")
+
     if not yes:
         typer.confirm(
-            f"Deploy '{service}' to context '{kube_context}', namespace '{namespace}'?",
+            f"Deploy '{release_name}' to context '{kube_context}', namespace '{namespace}'?",
             abort=True,
         )
 
@@ -149,7 +151,7 @@ def deploy(
 
     subprocess.run(
         [
-            "helm", "upgrade", "--install", service, chart,
+            "helm", "upgrade", "--install", release_name, chart,
             *values_args,
             *set_args,
             "--namespace", namespace,
