@@ -1,10 +1,10 @@
 dns:
-  postfix: "" # TODO: add postfix for QA environment, e.g. "qa.crystal.io"
+  postfix: "qa.crystal.io"
 kubernetes: 
   context: crystal-qa-azure-us
 helm:
   chart: ./kubernetes/charts/services
-  namespace: test
+  namespace: qa-tools
   # values_files: 
   #   - ./kubernetes/values.test.yaml
 registries: 
