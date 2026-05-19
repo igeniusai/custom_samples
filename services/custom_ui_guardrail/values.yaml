@@ -2,11 +2,21 @@ services:
   - name: custom-ui-guardrail
     image:
       registry: "eu.gcr.io/igenius-registry"
-      repository: custom-ui-guardrail
-      tag: "demo1"
+      repository: custom_ui_guardrail
+      tag: "latest"
       pullPolicy: Always
     imagePullSecrets:
       - name: vault-image-pull-secrets
+    env:
+      - name: "MODEL_NAME"
+        value: "Qwen/Qwen3-32B"
+      - name: "URL"
+        value: "https://gateway-dev.llm.crystal.ai/v1/chat/completions"
+      - name: "API_KEY"
+        valueFrom:
+          secretKeyRef:
+            name: "credential-test-secret"
+            key: "VLLM_API_KEY"
     ingress:
       enabled: true
       host: "blueprint"
