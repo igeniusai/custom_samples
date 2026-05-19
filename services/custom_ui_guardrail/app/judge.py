@@ -302,9 +302,7 @@ async def evaluate(
         labels.append("content")
 
     if not coros:
-        return _make_hook_result(
-            output_event, True, "No content to evaluate.", guardrail_name
-        )
+        return {"modified_event": output_event}
 
     # ------------------------------------------------------------------
     # Run in parallel, then surface the first error (thought before content)
