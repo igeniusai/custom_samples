@@ -1,0 +1,12 @@
+services:
+  langgraph-agent-controller:
+    build: .
+    ports:
+      - "9081:8080"
+    restart: unless-stopped
+    environment:
+      # Directory inside the container where agent_expose.py lives
+      - AGENT_WORKDIR=/srv/agent
+    volumes:
+      # Mount the sibling service so agent_expose.py is available at runtime
+      - ../langgraph_agent_example:/srv/agent:ro
