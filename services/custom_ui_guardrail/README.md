@@ -8,11 +8,22 @@ A ready-to-run guardrail service for the Domyn platform. Exposes two independent
 
 ```
 custom_ui_guardrail/
-├── guardrail_custom_ui_blueprint.py   # FastAPI service — modify policies and logic here
-├── admin_ui_template.html             # Admin iFrame UI template
-├── DOCKERFILE                         # Container image definition
+├── guardrail_custom_ui_blueprint.py   # Entrypoint — re-exports the FastAPI app for uvicorn
+├── app/
+│   ├── main.py                        # FastAPI app factory and router registration
+│   ├── config.py                      # State, settings, and persistence helpers
+│   ├── judge.py                       # LLM judge logic
+│   ├── models.py                      # Request/response models
+│   └── routers/
+│       ├── input_guardrail.py         # Input guardrail endpoints
+│       └── output_guardrail.py        # Output guardrail endpoints
+├── templates/
+│   ├── admin_ui.html                  # Admin iFrame UI template
+│   └── verdict_history_ui.html        # Verdict history iFrame UI template
+├── data/                              # Persisted config files (auto-created at runtime)
+├── Dockerfile                         # Container image definition
 ├── docker-compose.yml                 # One-command local Docker run
-└── requirements.txt                   # Python dependencies
+└── pyproject.toml                     # Python dependencies
 ```
 
 ---
@@ -27,16 +38,20 @@ custom_ui_guardrail/
 
 ## Endpoints
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/input-guardrail` | Evaluate a `user_input` / `agent_start` event |
-| `GET`  | `/input-guardrail/judge-settings` | Admin iFrame page for the input guardrail |
-| `POST` | `/input-guardrail/judge-settings` | Update input guardrail policy and LLM config |
-| `POST` | `/output-guardrail` | Evaluate a `response` event |
-| `GET`  | `/output-guardrail/judge-settings` | Admin iFrame page for the output guardrail |
-| `POST` | `/output-guardrail/judge-settings` | Update output guardrail policy and LLM config |
-| `GET`  | `/input-guardrail/.well-known/domyn-custom-ui` | Discovery metadata for the input guardrail view |
-| `GET`  | `/output-guardrail/.well-known/domyn-custom-ui` | Discovery metadata for the output guardrail view |
+| Method | Path | Description                                                               |
+|--------|------|---------------------------------------------------------------------------|
+| `POST` | `/input-guardrail` | Evaluate a `user_input` / `agent_start` event                             |
+| `GET`  | `/input-guardrail/judge-settings` | Admin iFrame page for the input guardrail, shown in canvas                |
+| `POST` | `/input-guardrail/judge-settings` | Update input guardrail policy and LLM config                              |
+| `GET`  | `/input-guardrail/verdict-history` | Verdict history iFrame page for the input guardrail, shown after messages |
+| `GET`  | `/input-guardrail/verdict-history/data` | Verdict history JSON for the input guardrail                              |
+| `GET`  | `/input-guardrail/.well-known/domyn-custom-ui` | Discovery metadata for the input guardrail views                          |
+| `POST` | `/output-guardrail` | Evaluate a `response` event                                               |
+| `GET`  | `/output-guardrail/judge-settings` | Admin iFrame page for the output guardrail, shown in canvas               |
+| `POST` | `/output-guardrail/judge-settings` | Update output guardrail policy and LLM config                             |
+| `GET`  | `/output-guardrail/verdict-history` | Verdict history iFrame page for the output guardrail, shown after messages                      |
+| `GET`  | `/output-guardrail/verdict-history/data` | Verdict history JSON for the output guardrail                             |
+| `GET`  | `/output-guardrail/.well-known/domyn-custom-ui` | Discovery metadata for the output guardrail views                         |
 
 ---
 
@@ -45,7 +60,7 @@ custom_ui_guardrail/
 Install dependencies:
 
 ```bash
-pip install -r requirements.txt
+pip install -e .
 ```
 
 Start the service:
@@ -57,6 +72,10 @@ uvicorn guardrail_custom_ui_blueprint:app --reload --port 8080
 The admin UIs are available at:
 - `http://localhost:8080/input-guardrail/judge-settings`
 - `http://localhost:8080/output-guardrail/judge-settings`
+
+The verdict history UIs are available at:
+- `http://localhost:8080/input-guardrail/verdict-history`
+- `http://localhost:8080/output-guardrail/verdict-history`
 
 ---
 
@@ -127,7 +146,7 @@ sudo journalctl -fu custom-ui-guardrail   # tail logs
 
 ## Configuring the guardrails
 
-Both guardrails start unconfigured. Use the admin UI (embedded in the Domyn canvas or accessible directly) to set:
+Both guardrails start with the default policy pre-loaded. Use the admin UI (embedded in the Domyn canvas or accessible directly) to set:
 
 | Field | Description |
 |-------|-------------|
@@ -136,7 +155,7 @@ Both guardrails start unconfigured. Use the admin UI (embedded in the Domyn canv
 | **API key** | Optional bearer token for the LLM endpoint |
 | **Policy** | Free-text instructions the judge follows when evaluating content |
 
-Settings are stored in memory — they reset on container restart. 
+Settings are persisted to disk in the `data/` directory (`data/input_guardrail.json` and `data/output_guardrail.json`) and survive container restarts. Verdict history is runtime-only and is not persisted.
 
 ---
 
@@ -162,6 +181,13 @@ Each guardrail receives a Domyn platform event and passes the content text to an
 | `approved` | Event is passed through unchanged |
 | `modified` | Event content is replaced with the cleaned version |
 | `rejected` | Event is replaced with a blocking message shown to the user |
+
+Each guardrail exposes two custom UI views in the Domyn platform canvas:
+
+| View | Location | Purpose |
+|------|----------|---------|
+| Admin (judge settings) | Space | Configure the LLM endpoint and policy |
+| Verdict history | Message | Inspect per-message verdicts and reasons inline |
 
 The result of each guardrail evaluation is displayed directly in the Domyn platform: a green circle indicates the content passed, a red circle indicates it was blocked or modified. The reason provided by the judge is shown alongside the indicator so users and operators can understand why a decision was made.
 

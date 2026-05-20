@@ -29,11 +29,10 @@ blueprint/langgraph_agent/
 
 ## Step 0 — Prepare the wheel
 
-Place the `domyn_agents-*.whl` file inside the `wheels/` directory:
+Obtain the `domyn_agents-*.whl` file and place it inside the `wheels/` directory before running anything:
 
 ```bash
 ls wheels/
-# domyn_agents-1.0.57-py3-none-any.whl  (example)
 ```
 
 ---
@@ -48,9 +47,9 @@ cp .env.example .env
 | Variable | Description |
 |---|---|
 | `DOMYN_API_KEY` | API key from the Domyn platform |
-| `CHANNEL_ID` | WebSocket channel ID assigned to this subagent |
-| `SPACE_ID` | Your workspace ID on the platform |
-| `PLATFORM_BASE_URL` | Platform base URL (e.g. `analytics-az.crystal.io`) |
+| `DOMYN_CHANNEL_ID` | WebSocket channel ID assigned to this subagent |
+| `DOMYN_SPACE_ID` | Your space ID on the platform |
+| `DOMYN_BASE_URL` | Platform base URL |
 | `VLLM_API_KEY` | API key for the vLLM/LLM gateway |
 | `VLLM_BASE_URL` | Base URL of the LLM gateway (OpenAI-compatible) |
 | `VLLM_MODEL` | Model name to use (e.g. `Qwen/Qwen3-32B`) |
@@ -78,10 +77,12 @@ Connect to the platform:
 ```bash
 source .env
 domyn expose agent_expose:graph \
-    --channel-id  $CHANNEL_ID \
-    --space-id    $SPACE_ID \
-    --base-url    $PLATFORM_BASE_URL
+    --channel-id  $DOMYN_CHANNEL_ID \
+    --space-id    $DOMYN_SPACE_ID \
+    --base-url    $DOMYN_BASE_URL
 ```
+
+`domyn expose` accepts a `module:symbol` argument pointing to a compiled LangGraph graph object. `agent_expose` is the Python module (i.e. `agent_expose.py`) and `graph` is the compiled graph instance exported from it. Any LangGraph graph can be served this way — change the argument to point to a different module or symbol as needed.
 
 The process stays running and reconnects automatically on network drops.
 
@@ -166,6 +167,21 @@ The agent is a LangGraph ReAct graph backed by an OpenAI-compatible LLM. It rece
 | `get_current_time` | Return the current UTC time |
 | `reverse_string` | Reverse a string |
 | `count_words` | Count words in a string |
+
+### Platform tools (governed by the Domyn platform)
+
+| Tool | Description |
+|---|---|
+| `web_search` | Search the web |
+| `search_papers_arxiv` | Search academic papers on arXiv |
+
+Platform tools are tools you connect to your agent through the Domyn platform canvas. The workflow is:
+
+1. On the Domyn platform, create a **delegate agent** — this gives you a `DOMYN_CHANNEL_ID`.
+2. From the canvas, attach the platform tools you want (e.g. `web_search`) to that channel.
+3. At startup, the blueprint fetches whichever tools are connected to the channel and adds them to `LOCAL_TOOLS` alongside the built-in tools.
+
+If no platform credentials are set, or the agent has not been connected to a channel yet, the blueprint starts normally with local tools only — no error is raised.
 
 ### Adding tools
 

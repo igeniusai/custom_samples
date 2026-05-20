@@ -88,15 +88,33 @@ async def _call_llm(messages: list[dict[str, str]], state: GuardrailState) -> st
     async with httpx.AsyncClient(timeout=300.0) as client:
         response = await client.post(state.url, headers=headers, json=payload)  # type: ignore[arg-type]
         response.raise_for_status()
-        return response.json()["choices"][0]["message"]["content"]
+        data = response.json()
+        choices = data.get("choices") or []
+        if not choices:
+            raise ValueError(f"LLM returned empty choices: {data}")
+        content = choices[0].get("message", {}).get("content")
+        if content is None:
+            raise ValueError(f"LLM returned null content: {choices[0]}")
+        return content
 
 
 def _extract_json(text: str) -> str:
-    """Strip markdown fences and return the first JSON object found in text."""
+    """Return the JSON payload from the LLM response.
+
+    Only strip fences if the model wrapped the *entire* response in one —
+    never strip fences that appear inside string values (e.g. ```java code
+    blocks inside the "output" field of a valid JSON).
+    """
     text = text.strip()
-    fenced = re.search(r"```(?:json)?\s*([\s\S]*?)```", text)
-    if fenced:
-        return fenced.group(1).strip()
+    try:
+        json.loads(text)
+        return text
+    except json.JSONDecodeError:
+        pass
+    if text.startswith("```"):
+        match = re.match(r"^```(?:json)?\s*\n?([\s\S]*?)\n?```\s*$", text)
+        if match:
+            return match.group(1).strip()
     brace = re.search(r"\{[\s\S]*\}", text)
     if brace:
         return brace.group(0)
@@ -108,9 +126,9 @@ async def _generate_verdict(
 ) -> JudgeVerdict:
     history = list(messages)
     last_error: Exception | None = None
-    content: str = ""
 
     for attempt in range(1, _MAX_RETRIES + 1):
+        content: str = ""
         try:
             content = await _call_llm(history, state)
             return JudgeVerdict.model_validate_json(_extract_json(content))
@@ -118,20 +136,26 @@ async def _generate_verdict(
             last_error = exc
             status = exc.response.status_code
             snippet = exc.response.text[:200]
-            print(f"[judge] attempt {attempt}/{_MAX_RETRIES} LLM returned HTTP {status}: {snippet}")
+            print(
+                f"[judge] attempt {attempt}/{_MAX_RETRIES} LLM returned HTTP {status}: {snippet}"
+            )
             if status < 500:
                 raise
             await asyncio.sleep(1.0 * attempt)
         except (ValidationError, ValueError, json.JSONDecodeError) as exc:
             last_error = exc
-            print(f"[judge] attempt {attempt}/{_MAX_RETRIES} malformed output: {exc}\nRaw: {content!r}")
+            print(
+                f"[judge] attempt {attempt}/{_MAX_RETRIES} malformed output: {exc}\nRaw: {content!r}"
+            )
             history = [
                 *history,
                 {"role": "assistant", "content": content},
                 {"role": "user", "content": _RETRY_PROMPT},
             ]
 
-    raise RuntimeError(f"Guardrail failed after {_MAX_RETRIES} attempts") from last_error
+    raise RuntimeError(
+        f"Guardrail failed after {_MAX_RETRIES} attempts"
+    ) from last_error
 
 
 # ---------------------------------------------------------------------------
@@ -243,8 +267,8 @@ async def evaluate(
 
         case Verdict.MODIFIED:
             modified_warning = (
-                f"\n\nNote: The original content was modified by the "
-                f"{guardrail_name} guardrail to comply with the policy."
+                f"\n\n*[SYSTEM NOTE - {guardrail_name}]: This content was intentionally modified to comply with policy. "
+                f"This modified version is the one that will be considered from now on.*"
             )
             task = verdict.output + modified_warning
             output_event["content"] = [{"text": task}]

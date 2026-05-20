@@ -1,0 +1,10 @@
+[project]
+name = "langgraph-agent-controller"
+version = "0.1.0"
+description = "FastAPI service to configure, start, and stop the langgraph agent expose process."
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.136.1",
+    "pydantic>=2.13.4",
+    "uvicorn[standard]>=0.46.0",
+]

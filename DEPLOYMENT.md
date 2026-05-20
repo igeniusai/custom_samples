@@ -1,4 +1,4 @@
-# README
+# Custom Samples - Deployment
 
 A template for containerizing and deploying one or more services — locally with Docker Compose or to a Kubernetes cluster with Helm.
 

@@ -73,9 +73,20 @@ LOCAL_TOOLS = [
     get_current_time,
     reverse_string,
     count_words,
-    _platform_tools.get_tool("web_search") if _platform_tools else None,
-    # _platform_tools.get_tool("search_papers_arxiv") if _platform_tools else None,
 ]
+
+searched_platform_tools = [
+    "web_search",
+    "search_papers_arxiv",
+]
+
+if _platform_tools:
+    for tool_name in searched_platform_tools:
+        try:
+            _platform_tools.get_tool(tool_name)
+            LOCAL_TOOLS.append(_platform_tools.get_tool(tool_name))
+        except Exception as exc:
+            print(f"Failed to load platform tool {tool_name}: {exc}")
 
 # ---------------------------------------------------------------------------
 # Graph

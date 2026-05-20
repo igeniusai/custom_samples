@@ -23,17 +23,16 @@ blueprint/
 
 - Python 3.11+ (for local/laptop runs)
 - Docker (for containerised runs and VM deployment)
-- The `domyn-agents` wheel file — obtain it from your Domyn contact and place it in `blueprint/wheels/`
+- The `domyn-agents` wheel file — place it in `wheels/`
 
 ---
 
 ## Step 0 — Prepare the wheel
 
-Place the `domyn_agents-*.whl` file inside the `wheels/` directory:
+Obtain the `domyn_agents-*.whl` file and place it inside the `wheels/` directory before running anything:
 
 ```bash
 ls wheels/
-# domyn_agents-1.0.40-py3-none-any.whl  (example)
 ```
 
 ---
@@ -75,10 +74,12 @@ Connect to the platform:
 ```bash
 source .env
 domyn expose loan_assessment_graph:graph \
-    --channel-id  $CHANNEL_ID \
-    --space-id    $SPACE_ID \
-    --base-url    $PLATFORM_BASE_URL
+    --channel-id  $DOMYN_CHANNEL_ID \
+    --space-id    $DOMYN_SPACE_ID \
+    --base-url    $DOMYN_BASE_URL
 ```
+
+`domyn expose` accepts a `module:symbol` argument pointing to a compiled LangGraph graph object. `loan_assessment_graph` is the Python module (i.e. `loan_assessment_graph.py`) and `graph` is the compiled graph instance exported from it. Any LangGraph graph can be served this way — change the argument to point to a different module or symbol as needed.
 
 The process stays running and reconnects automatically on network drops.
 
