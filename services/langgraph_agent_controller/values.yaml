@@ -1,0 +1,19 @@
+services:
+  - name: custom-ui-guardrail
+    image:
+      registry: "eu.gcr.io/igenius-registry"
+      repository: langgraph_agent_controller
+      tag: "latest"
+      pullPolicy: Always
+    imagePullSecrets:
+      - name: vault-image-pull-secrets
+    expose:
+      - name: external1
+        type: LoadBalancer
+        ports:
+          - port: 8888
+            targetPort: 8080
+            name: http
+            protocol: TCP
+    ingress:
+      enabled: false
