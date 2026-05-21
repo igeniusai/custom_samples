@@ -1,0 +1,3 @@
+name: hermes_platform_gateway
+version: "1.0"
+description: Domyn platform gateway — discovers canvas tools and bridges hermes ⇄ relay WebSocket

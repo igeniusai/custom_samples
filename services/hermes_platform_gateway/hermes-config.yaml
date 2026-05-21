@@ -1,0 +1,12 @@
+# Hermes config baked into the image. Env vars (VLLM_*) are resolved at
+# startup via hermes' built-in ${VAR} expansion — see hermes_cli/config.py:_expand_env_vars.
+model:
+  provider: custom
+  default: ${VLLM_MODEL}
+  base_url: ${VLLM_BASE_URL}
+  api_key: ${VLLM_API_KEY}
+  api_mode: chat_completions
+
+plugins:
+  enabled:
+    - hermes_platform_gateway
