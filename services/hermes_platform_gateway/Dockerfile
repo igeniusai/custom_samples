@@ -42,16 +42,17 @@ RUN pip install --no-cache-dir /opt/hermes-platform-gateway && \
     cp /opt/hermes-platform-gateway/plugin.yaml \
        ${HERMES_HOME}/plugins/hermes_platform_gateway/
 
-# 5) hermes config:
-#    - point hermes' default model at the vLLM gateway (api_key + base_url +
-#      model come from env vars at startup via hermes' ${VAR} expansion);
-#    - opt-in the platform-gateway plugin — standalone-kind plugins are
-#      skipped unless explicitly listed under `plugins.enabled`.
-COPY hermes-config.yaml ${HERMES_HOME}/config.yaml
+# 5) hermes config template + entrypoint that materialises it.
+#    gateway mode reads ~/.hermes/config.yaml via read_raw_config() which
+#    does NOT expand ${VAR} references — so we resolve them at container
+#    start with entrypoint.sh and write the result into $HERMES_HOME.
+COPY hermes-config.yaml /opt/hermes-config.template.yaml
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
 
-# 6) Run hermes as a relay-attached worker. Stdin is closed in containers,
-#    so we drop into `hermes chat` non-interactively — the plugin's
-#    `on_session_start` hook will still fire, the WS subscriber stays open
-#    in a daemon thread, and AGENT_START events injected from the platform
-#    drive the conversation.
-CMD ["hermes", "chat"]
+# 6) Run hermes in gateway mode. The gateway is the headless, multi-session
+#    runner — it doesn't open a TUI and doesn't need a TTY. AGENT_START
+#    events for any conversation_id arriving on the subscribed channel are
+#    routed by the gateway to a per-conversation hermes session.
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["hermes", "gateway"]

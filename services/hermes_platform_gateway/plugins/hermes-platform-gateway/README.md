@@ -6,14 +6,15 @@ A hermes-agent pip plugin that dynamically registers canvas-connected tools at s
 
 ## How it works
 
-1. **Tool discovery** — on startup, the plugin calls `POST /api/agents-service/tool/list_delegate_tools_for_channel` (on the `api.` subdomain, matching `domyn expose`) to fetch the tools currently connected on the canvas for the given `space_id` + `channel_id` (and optional `configuration_id`).
+1. **Tool discovery** — on startup, the plugin POSTs `/api/agents-service/tool/list_delegate_tools_for_channel` to fetch the canvas tools for the given `space_id` + `channel_id` (and optional `configuration_id`).
 2. **Schema conversion** — platform parameter lists are translated to hermes JSON Schema objects and registered with `ctx.register_tool`.
-3. **Relay connection** — a background daemon thread opens `wss://{DOMYN_BASE_URL}/relay/v1/ws` with the auth headers (`channel-id`, `space-id`, `api-key`).
-4. **Tool call flow** — when hermes invokes a platform tool, the handler sends a `TOOL_START` relay message and blocks on a `concurrent.futures.Future` until the matching `TOOL_END` (keyed by `call_id`) resolves it.
-5. **Reconnection** — if the WebSocket drops, in-flight calls fail immediately with an error JSON and the background loop reconnects with full-jitter exponential backoff.
-6. **Canvas changes** — a `RefreshLoop` daemon thread polls the tool list every `PLATFORM_TOOL_REFRESH_INTERVAL` seconds (default 60). New tools are registered, removed tools are deregistered, unchanged tools are left alone.
-7. **Inbound user input** — when the platform sends an `AGENT_START` relay event, the plugin extracts the user text and injects it into hermes via `ctx.inject_message`, triggering a normal agent turn.
-8. **Turn completion** — after each LLM turn (`post_llm_call` hook), the plugin sends one `AGENT_END` relay event carrying the full assistant response and the correlation IDs (`author`, `interaction_id`, `turn_id`, `conversation_id`) from the originating `AGENT_START`. We intentionally do *not* stream tokens as `RESPONSE(is_partial=True)` events: the platform treats each `RESPONSE` as its own block (joined with newlines in the UI) and a non-empty `AGENT_END` is "promoted" to a final `RESPONSE` — mixing the two paths produces duplicated output. The current shape mirrors what `domyn expose`'s Runtime does.
+3. **Platform adapter registration** — `register(ctx)` calls `ctx.register_platform("domyn", "Domyn", factory, check_fn)`. Hermes' gateway runner instantiates the adapter when the gateway starts.
+4. **Single WebSocket, multiple conversations** — the adapter opens one `wss://{DOMYN_BASE_URL}/relay/v1/ws` connection. Inbound `AGENT_START` events are demultiplexed by `conversation_id` and translated to hermes `MessageEvent`s with `session_key = f"domyn:{channel_id}:{conversation_id}"`.
+5. **Per-conversation sessions** — hermes' `GatewayRunner` maintains one `AIAgent` per `session_key`, cached LRU, with per-session SQLite-backed history. Different conversations run concurrently in separate asyncio tasks.
+6. **Outbound responses** — when an `AIAgent` finishes its turn, the gateway calls `adapter.send(chat_id=conversation_id, text)`. The adapter looks up the originating `AGENT_START`, copies its correlation IDs, and emits one `AGENT_END` frame.
+7. **Tool calls** — the tool handler closure reads `parent_agent.session_id`, looks up the `session_key` via the adapter's `_session_id_to_key` map (populated by an `on_session_start` hook), then sends a `TOOL_START` with that conversation's correlation IDs. `TOOL_END`/`TOOL_ERROR` resolve a per-`call_id` future.
+8. **Reconnection** — the adapter reconnects with full-jitter exponential backoff. In-flight tool calls fail with an error JSON; in-flight hermes turns continue locally (but their response is lost if the WS is still down at send time — accepted v1 limitation).
+9. **Canvas changes** — `RefreshLoop` polls the tool list every `PLATFORM_TOOL_REFRESH_INTERVAL` seconds, registers new tools, deregisters removed ones.
 
 ---
 
@@ -27,7 +28,7 @@ A hermes-agent pip plugin that dynamically registers canvas-connected tools at s
 
 ## Installation
 
-The plugin manifest (`plugin.yaml` + `__init__.py`) lives in `~/.hermes/plugins/hermes_platform_gateway/`, but `register()` imports the actual implementation (`fetch_tools`, `GatewayConnection`, …) from the pip-installed `hermes_platform_gateway` package — so you must install **into the hermes-agent venv**, not whichever Python happens to be on `$PATH`:
+The plugin manifest (`plugin.yaml` + `__init__.py`) lives in `~/.hermes/plugins/hermes_platform_gateway/`, but `register()` imports the actual implementation (`fetch_tools`, `RefreshLoop`, `build_ws_url`, …) from the pip-installed `hermes_platform_gateway` package — so you must install **into the hermes-agent venv**, not whichever Python happens to be on `$PATH`:
 
 ```bash
 HERMES_VENV=~/.hermes/hermes-agent/venv
@@ -185,7 +186,7 @@ uv pip install -e ".[dev]"
 uv run --active pytest tests/ -v
 
 # Run a single file
-uv run --active pytest tests/test_gateway.py -v
+uv run --active pytest tests/test_relay_client.py -v
 ```
 
 Test files:
@@ -194,7 +195,8 @@ Test files:
 |---|---|
 | `tests/test_schema.py` | `convert_schema()` — type mapping, required/optional/default, unknown types |
 | `tests/test_client.py` | `fetch_tools()` HTTP requests, `build_ws_url()` scheme selection |
-| `tests/test_gateway.py` | `GatewayConnection` internals — receive loop, fail-pending, call_tool round-trip, `_serialize_observation` |
+| `tests/test_relay_client.py` | `DomynRelayClient` — framing, receive loop, full-jitter reconnect backoff |
+| `tests/test_adapter.py` | `DomynPlatformAdapter` — inbound AGENT_START, send/AGENT_END, tool-call routing, session_id↔key map |
 | `tests/test_register.py` | `register(ctx)` — env var checks, schema wiring, handler delegation, correct WS URL and headers |
 | `tests/test_integration.py` | End-to-end against a real in-process stub — tool discovery, TOOL_START/END round-trip, inbound AGENT_START, outbound send_event, auth headers |
 

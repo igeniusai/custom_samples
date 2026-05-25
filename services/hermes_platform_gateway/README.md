@@ -18,17 +18,16 @@ hermes_platform_gateway/
 
 ## How it fits together
 
-1. The Dockerfile installs hermes-agent from git, the `domyn-agents` wheel, then `pip install /opt/hermes-platform-gateway` so `hermes_platform_gateway` is importable.
+1. The Dockerfile installs hermes-agent, the `domyn-agents` wheel, then `pip install /opt/hermes-platform-gateway` so `hermes_platform_gateway` is importable.
 2. The same plugin folder is *also* copied under `$HERMES_HOME/plugins/hermes_platform_gateway/` so hermes' plugin loader picks up `plugin.yaml` and calls `register(ctx)`.
-3. `config.yaml` opt-ins the plugin under `plugins.enabled` — standalone-kind plugins are skipped otherwise.
-4. On startup, `register(ctx)`:
-   - POSTs `https://api.<DOMYN_BASE_URL>/api/agents-service/tool/list_delegate_tools_for_channel` to discover canvas tools (uses the `api.` subdomain — the same shape `domyn expose` uses).
-   - Registers each tool into hermes' `platform` toolset with a sync handler that forwards calls over the relay WebSocket.
-   - Opens `wss://<DOMYN_BASE_URL>/relay/v1/ws` with `api-key` / `space-id` / `channel-id` headers, and runs a background daemon thread that:
-     - injects platform `AGENT_START` events into hermes via `ctx.inject_message`,
-     - streams tokens back as `RESPONSE(is_partial=True)` events,
-     - sends `AGENT_END` after each LLM turn,
-     - resolves outstanding `TOOL_END`/`TOOL_ERROR` to the matching `concurrent.futures.Future` by `call_id`.
+3. `config.yaml` opt-ins the plugin under `plugins.enabled`.
+4. The container runs `hermes gateway` — the headless, multi-session runner. No TUI, no TTY required.
+5. On startup, `register(ctx)`:
+   - POSTs `https://api.<DOMYN_BASE_URL>/api/agents-service/tool/list_delegate_tools_for_channel` to discover canvas tools.
+   - Registers each tool into hermes' `platform` toolset with an async handler that forwards calls over the relay WebSocket, correlated to the active conversation.
+   - Registers a `domyn` platform adapter via `ctx.register_platform`. The adapter owns the WebSocket and translates `AGENT_START` events into hermes `MessageEvent`s with `chat_id = conversation_id`.
+   - Registers an `on_session_start` hook that links hermes' `session_id` to the adapter's `session_key`, so tool handlers can find the right turn correlation IDs.
+6. The hermes gateway maintains one `AIAgent` per Domyn `conversation_id` (LRU-cached), with per-session SQLite-backed history. Different conversations run concurrently; same-conversation messages stay serialised.
 
 ## Prerequisites
 
@@ -96,7 +95,7 @@ make build && make up
 |---|---|
 | Container logs: `4401 Unauthorized` on WS connect | `DOMYN_API_KEY` lacks worker-role scope on this channel. Regenerate it from the platform with worker permissions. |
 | Logs say `registered 0 platform tool(s)` | Canvas has no tools attached, or `DOMYN_CHANNEL_ID` points at the wrong channel. Verify with `curl https://api.<DOMYN_BASE_URL>/api/agents-service/tool/list_delegate_tools_for_channel -H 'api-key: …' -d '{"space_id":"…","channel_id":"…","configuration_id":null}'`. |
-| Two workers responding to the same message | Multiple containers/processes are subscribed to the same `channel-id`. Only one worker should subscribe per channel. |
+| Two workers responding to the same message | Multiple containers/processes are subscribed to the same `channel-id`. Only one worker per channel. Multi-conversation works *within* one worker — not by running more workers on the same channel. |
 | Discovery returns tools but WS reconnects in a tight loop | Same as above — relay kicks each subscriber off when another connects. |
 
 ## Stopping
