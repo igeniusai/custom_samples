@@ -118,6 +118,7 @@ class GatewayConnection:
         self._loop: asyncio.AbstractEventLoop | None = None
         self._ws: Any = None
         self._ready = threading.Event()
+        self._stop_requested = threading.Event()
 
     def start(self) -> None:
         """Spawn the background WebSocket thread and wait up to 15s for first connect."""
@@ -174,11 +175,20 @@ class GatewayConnection:
                 continue
 
             if event.event_type == ExecutionEventType.AGENT_START:
+                self._stop_requested.clear()
                 if self._on_agent_start is not None:
                     try:
                         self._on_agent_start(event)
                     except Exception as exc:
                         logger.warning("platform-gateway: on_agent_start callback failed - %s", exc)
+                continue
+
+            if event.event_type == ExecutionEventType.AGENT_END:
+                # An AGENT_END arriving from the platform (not echoed from Hermes itself,
+                # since the relay excludes the sender) is a cancellation signal.
+                logger.info("platform-gateway: received AGENT_END from platform — stopping current turn")
+                self._stop_requested.set()
+                self._fail_pending("Execution cancelled by user")
                 continue
 
             if event.event_type not in (

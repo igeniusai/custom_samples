@@ -151,6 +151,10 @@ def register(ctx) -> None:
             _current_turn[0] = None
         if turn is None:
             return
+        if gateway._stop_requested.is_set():
+            logger.info("platform-gateway: turn cancelled by user, skipping AGENT_END response")
+            gateway._stop_requested.clear()
+            return
         event = BaseEvent(
             event_type=ExecutionEventType.AGENT_END,
             author=turn.author,
