@@ -1,10 +1,12 @@
 """Platform relay client: tool discovery and WebSocket connection management."""
+
 from __future__ import annotations
 
 import logging
 import threading
 import time
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import httpx
 
@@ -27,7 +29,7 @@ def build_ws_url(base_url: str) -> str:
     """
     for prefix in ("https://", "http://"):
         if base_url.startswith(prefix):
-            base_url = base_url[len(prefix):]
+            base_url = base_url[len(prefix) :]
             break
     base_url = base_url.rstrip("/")
     scheme = "ws" if _is_localhost(base_url) else "wss"
@@ -89,6 +91,7 @@ def _deregister_tool(name: str) -> None:
     """Remove a tool from the hermes tool registry."""
     try:
         from tools.registry import registry
+
         registry.deregister(name)
         logger.info("platform-gateway: deregistered tool '%s'", name)
     except ImportError:
@@ -139,7 +142,7 @@ class RefreshLoop:
             self._refresh()
 
     def _refresh(self) -> None:
-        from hermes_platform_gateway.schema import convert_schema
+        from .schema import convert_schema
 
         try:
             raw_tools = fetch_tools(

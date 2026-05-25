@@ -12,15 +12,20 @@ Per platform tool call:
     adapter emits TOOL_START, awaits TOOL_END/TOOL_ERROR from the relay
     _resolve_tool_call wakes the awaiting handler via call_soon_threadsafe
 """
+
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 import uuid
+from collections.abc import Callable
 from datetime import datetime
-from typing import Any, Callable, Dict, Optional
+from typing import Any
 
+from gateway.config import Platform, PlatformConfig
+from gateway.platform_registry import PlatformEntry, platform_registry
 from gateway.platforms.base import (
     BasePlatformAdapter,
     MessageEvent,
@@ -28,8 +33,6 @@ from gateway.platforms.base import (
     SendResult,
 )
 from gateway.session import SessionSource
-from gateway.config import Platform, PlatformConfig
-from gateway.platform_registry import PlatformEntry, platform_registry
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +40,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Module-level helpers
 # ---------------------------------------------------------------------------
+
 
 def _build_session_key(channel_id: str, conversation_id: str) -> str:
     return f"domyn:{channel_id}:{conversation_id}"
@@ -95,6 +99,7 @@ _ensure_domyn_registered()
 # Adapter
 # ---------------------------------------------------------------------------
 
+
 class DomynPlatformAdapter(BasePlatformAdapter):
     """Bridges the Domyn relay WebSocket to hermes' gateway runner."""
 
@@ -112,14 +117,14 @@ class DomynPlatformAdapter(BasePlatformAdapter):
         super().__init__(config=config, platform=Platform("domyn"))
         self._channel_id = channel_id
         # Per-conversation state — keyed by adapter-internal session_key.
-        self._turn_by_session: Dict[str, Any] = {}
+        self._turn_by_session: dict[str, Any] = {}
         # Per-tool-call state — keyed by hermes' registry task_id.
-        self._chat_id_by_task: Dict[str, str] = {}
-        self._thought_by_task: Dict[str, str] = {}
+        self._chat_id_by_task: dict[str, str] = {}
+        self._thought_by_task: dict[str, str] = {}
         # Per-call_id state — for visibility (built-in tools) vs real
         # platform tool round-trips. Disjoint keyspaces.
-        self._visibility_call_id_by_task: Dict[str, str] = {}
-        self._pending_calls: Dict[str, Any] = {}  # call_id -> (Future, loop)
+        self._visibility_call_id_by_task: dict[str, str] = {}
+        self._pending_calls: dict[str, Any] = {}  # call_id -> (Future, loop)
         self._client = relay_client_factory(self._on_event)
 
     async def connect(self) -> bool:
@@ -135,12 +140,10 @@ class DomynPlatformAdapter(BasePlatformAdapter):
     async def send_typing(self, chat_id: str, metadata: Any = None) -> None:
         return None
 
-    async def get_chat_info(self, chat_id: str) -> Dict[str, Any]:
+    async def get_chat_info(self, chat_id: str) -> dict[str, Any]:
         return {"name": chat_id, "type": "dm", "chat_id": chat_id}
 
-    async def on_processing_complete(
-        self, event: "MessageEvent", outcome: Any
-    ) -> None:
+    async def on_processing_complete(self, event: MessageEvent, outcome: Any) -> None:
         """Emit the terminal END *after* the gateway's final send returns.
 
         ``BasePlatformAdapter._process_message_background`` calls this
@@ -218,8 +221,8 @@ class DomynPlatformAdapter(BasePlatformAdapter):
         self,
         chat_id: str,
         content: str,
-        reply_to: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        reply_to: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> SendResult:
         """Emit AGENT_END for one visible chat message.
 
@@ -235,7 +238,8 @@ class DomynPlatformAdapter(BasePlatformAdapter):
             preview = (content or "")[:100]
             logger.warning(
                 "domyn-adapter: send for %s with no prior AGENT_START (preview=%r)",
-                session_key, preview,
+                session_key,
+                preview,
             )
             return SendResult(success=False, error="no prior AGENT_START")
 
@@ -294,8 +298,8 @@ class DomynPlatformAdapter(BasePlatformAdapter):
         *,
         chat_id: str,
         tool_name: str,
-        args: Dict[str, Any],
-        thought: Optional[str],
+        args: dict[str, Any],
+        thought: str | None,
         call_id: str,
     ) -> None:
         """Push TOOL_START for a hermes built-in tool (visibility only).
@@ -327,7 +331,8 @@ class DomynPlatformAdapter(BasePlatformAdapter):
         except Exception as exc:
             logger.warning(
                 "domyn-adapter: emit_visibility_tool_start %s failed - %s",
-                tool_name, exc,
+                tool_name,
+                exc,
             )
 
     async def emit_visibility_tool_end(
@@ -362,7 +367,8 @@ class DomynPlatformAdapter(BasePlatformAdapter):
         except Exception as exc:
             logger.warning(
                 "domyn-adapter: emit_visibility_tool_end %s failed - %s",
-                tool_name, exc,
+                tool_name,
+                exc,
             )
 
     # =====================================================================
@@ -374,8 +380,8 @@ class DomynPlatformAdapter(BasePlatformAdapter):
         *,
         session_key: str,
         tool_name: str,
-        args: Dict[str, Any],
-        thought: Optional[str] = None,
+        args: dict[str, Any],
+        thought: str | None = None,
         timeout: float = 120.0,
     ) -> str:
         """Send TOOL_START, await TOOL_END/TOOL_ERROR, return the observation as JSON."""
@@ -408,7 +414,9 @@ class DomynPlatformAdapter(BasePlatformAdapter):
         )
         logger.debug(
             "domyn-adapter: TOOL_START name=%s call_id=%s conversation_id=%s",
-            tool_name, call_id, turn.conversation_id,
+            tool_name,
+            call_id,
+            turn.conversation_id,
         )
         try:
             await self._client.send_event(start)
@@ -416,7 +424,9 @@ class DomynPlatformAdapter(BasePlatformAdapter):
             self._pending_calls.pop(call_id, None)
             logger.warning(
                 "domyn-adapter: TOOL_START send failed for %s call_id=%s - %s",
-                tool_name, call_id, exc,
+                tool_name,
+                call_id,
+                exc,
             )
             return json.dumps({"error": f"send failed: {exc}"})
 
@@ -424,20 +434,25 @@ class DomynPlatformAdapter(BasePlatformAdapter):
             observation = await asyncio.wait_for(fut, timeout=timeout)
             logger.debug(
                 "domyn-adapter: TOOL_END received name=%s call_id=%s",
-                tool_name, call_id,
+                tool_name,
+                call_id,
             )
             return _serialise_observation(observation)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             self._pending_calls.pop(call_id, None)
             logger.warning(
                 "domyn-adapter: TOOL timeout name=%s call_id=%s after %.1fs",
-                tool_name, call_id, timeout,
+                tool_name,
+                call_id,
+                timeout,
             )
             return json.dumps({"error": f"Tool '{tool_name}' timed out after {timeout}s"})
         except Exception as exc:
             logger.warning(
                 "domyn-adapter: TOOL future raised name=%s call_id=%s - %s",
-                tool_name, call_id, exc,
+                tool_name,
+                call_id,
+                exc,
             )
             return json.dumps({"error": str(exc)})
 
@@ -454,14 +469,17 @@ class DomynPlatformAdapter(BasePlatformAdapter):
         if entry is None:
             logger.warning(
                 "domyn-adapter: %s call_id=%s has no pending future (pending=%s)",
-                et_value, call_id, sorted(self._pending_calls.keys()),
+                et_value,
+                call_id,
+                sorted(self._pending_calls.keys()),
             )
             return
         fut, fut_loop = entry
         if fut.done():
             logger.warning(
                 "domyn-adapter: %s call_id=%s future already resolved",
-                et_value, call_id,
+                et_value,
+                call_id,
             )
             return
         if event.event_type == ExecutionEventType.TOOL_ERROR:
@@ -488,7 +506,7 @@ class DomynPlatformAdapter(BasePlatformAdapter):
         fut_loop: asyncio.AbstractEventLoop,
         *,
         result: Any = None,
-        exc: Optional[BaseException] = None,
+        exc: BaseException | None = None,
     ) -> None:
         """Resolve a Future from a potentially different event loop.
 
@@ -497,6 +515,7 @@ class DomynPlatformAdapter(BasePlatformAdapter):
         receive loop, which calls us, runs in the gateway's loop.
         ``call_soon_threadsafe`` is the canonical cross-loop bridge.
         """
+
         def _apply() -> None:
             if fut.done():
                 return
@@ -504,11 +523,10 @@ class DomynPlatformAdapter(BasePlatformAdapter):
                 fut.set_exception(exc)
             else:
                 fut.set_result(result)
-        try:
+
+        # Worker loop closed already — nothing waiting.
+        with contextlib.suppress(RuntimeError):
             fut_loop.call_soon_threadsafe(_apply)
-        except RuntimeError:
-            # Worker loop closed already — nothing waiting.
-            pass
 
     # =====================================================================
     # Per-task bookkeeping (used by pre_tool_call / post_tool_call hooks)
@@ -518,9 +536,7 @@ class DomynPlatformAdapter(BasePlatformAdapter):
         """Derive the adapter's internal session_key from a chat_id."""
         return _build_session_key(self._channel_id, chat_id)
 
-    def record_task_chat(
-        self, *, task_id: str, chat_id: str, thought: Optional[str] = None
-    ) -> None:
+    def record_task_chat(self, *, task_id: str, chat_id: str, thought: str | None = None) -> None:
         """Stash (chat_id, thought) for a registry task_id.
 
         The platform tool handler only receives ``task_id`` from
@@ -541,7 +557,7 @@ class DomynPlatformAdapter(BasePlatformAdapter):
             self._chat_id_by_task.pop(task_id, None)
             self._thought_by_task.pop(task_id, None)
 
-    def thought_for_task(self, task_id: str) -> Optional[str]:
+    def thought_for_task(self, task_id: str) -> str | None:
         """Return the thought stashed by pre_tool_call, if any."""
         return self._thought_by_task.get(task_id)
 
@@ -550,6 +566,6 @@ class DomynPlatformAdapter(BasePlatformAdapter):
         if task_id and call_id:
             self._visibility_call_id_by_task[task_id] = call_id
 
-    def pop_visibility_call(self, task_id: str) -> Optional[str]:
+    def pop_visibility_call(self, task_id: str) -> str | None:
         """Return-and-clear the visibility call_id for *task_id*."""
         return self._visibility_call_id_by_task.pop(task_id, None) if task_id else None

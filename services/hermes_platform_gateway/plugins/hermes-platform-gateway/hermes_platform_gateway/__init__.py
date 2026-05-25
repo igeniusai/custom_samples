@@ -4,6 +4,7 @@ Registers a Domyn platform adapter via ``ctx.register_platform``. The
 adapter opens one WebSocket per worker to the Domyn relay and routes
 each ``conversation_id`` to its own hermes session.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -11,14 +12,15 @@ import json
 import logging
 import os
 import uuid
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
-from hermes_platform_gateway.client import (
-    fetch_tools,
-    build_ws_url,
+from .client import (
     RefreshLoop,
+    build_ws_url,
+    fetch_tools,
 )
-from hermes_platform_gateway.schema import convert_schema
+from .schema import convert_schema
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +35,7 @@ _REQUIRED = ("DOMYN_API_KEY", "DOMYN_BASE_URL", "DOMYN_SPACE_ID", "DOMYN_CHANNEL
 # ---------------------------------------------------------------------------
 # Helpers — pure functions, no adapter / hermes state
 # ---------------------------------------------------------------------------
+
 
 def _extract_last_reasoning(conversation_history: Any) -> str:
     """Return the current turn's reasoning trace, or ``""`` when absent.
@@ -90,6 +93,7 @@ def _hardcoded_tool_thought(tool_name: str, args: Any) -> str:
 # Hermes runtime lookups — read-only access to gateway internals
 # ---------------------------------------------------------------------------
 
+
 def _runner_ref_or_none() -> Any:
     """Return the live ``GatewayRunner`` instance, or None."""
     try:
@@ -127,6 +131,7 @@ def _chat_id_and_thought_for_task(task_id: str) -> tuple[str | None, str]:
 # affinity. ``_schedule_on_gateway_loop`` is the cross-loop bridge.
 # ---------------------------------------------------------------------------
 
+
 def _schedule_on_gateway_loop(coro: Any, *, label: str) -> None:
     """Fire-and-forget schedule of *coro* on the gateway's event loop."""
     runner = _runner_ref_or_none()
@@ -149,6 +154,7 @@ def _schedule_on_gateway_loop(coro: Any, *, label: str) -> None:
 # the daemon thread and so ``RefreshLoop._refresh`` can rebuild handlers
 # when new canvas tools appear.
 # ---------------------------------------------------------------------------
+
 
 def _start_refresh_loop(**kwargs: Any) -> None:
     """Indirection so tests can stub the daemon thread."""
@@ -190,6 +196,7 @@ def _make_tool_handler(
 # Plugin entry point
 # ---------------------------------------------------------------------------
 
+
 def register(ctx: Any) -> None:
     """Plugin entry — called once by hermes' plugin loader at startup."""
     missing = [v for v in _REQUIRED if not os.environ.get(v)]
@@ -210,7 +217,10 @@ def register(ctx: Any) -> None:
 
     try:
         raw_tools = fetch_tools(
-            base_url, space_id, channel_id, api_key,
+            base_url,
+            space_id,
+            channel_id,
+            api_key,
             configuration_id=configuration_id,
         )
     except Exception as exc:
@@ -226,8 +236,8 @@ def register(ctx: Any) -> None:
     headers = {"channel-id": channel_id, "space-id": space_id, "api-key": api_key}
 
     def _factory(config: Any) -> Any:
-        from hermes_platform_gateway.adapter import DomynPlatformAdapter
-        from hermes_platform_gateway.relay_client import DomynRelayClient
+        from .adapter import DomynPlatformAdapter
+        from .relay_client import DomynRelayClient
 
         def relay_factory(on_event: Callable[[Any], Any]) -> Any:
             return DomynRelayClient(ws_url=ws_url, headers=headers, on_event=on_event)
@@ -274,7 +284,8 @@ def register(ctx: Any) -> None:
         registered_names.add(name)
     logger.info(
         "platform-gateway: registered domyn adapter with %d platform tool(s): %s",
-        len(registered_names), sorted(registered_names),
+        len(registered_names),
+        sorted(registered_names),
     )
 
     # --- Hooks ---
@@ -302,13 +313,19 @@ def register(ctx: Any) -> None:
         effective_thought = thought or _hardcoded_tool_thought(tool_name, args)
         logger.debug(
             "platform-gateway: pre_tool_call %s task_id=%s chat_id=%s is_platform=%s has_real_thought=%s",
-            tool_name, task_id, chat_id, is_platform, bool(thought),
+            tool_name,
+            task_id,
+            chat_id,
+            is_platform,
+            bool(thought),
         )
 
         # Always stash chat_id (+ thought) — post_tool_call reads this
         # back regardless of branch.
         adapter.record_task_chat(
-            task_id=task_id, chat_id=chat_id, thought=effective_thought,
+            task_id=task_id,
+            chat_id=chat_id,
+            thought=effective_thought,
         )
 
         if is_platform:

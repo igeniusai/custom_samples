@@ -1,4 +1,5 @@
 """Convert platform tool definitions to hermes JSON Schema format."""
+
 from __future__ import annotations
 
 _TYPE_MAP: dict[str, str] = {

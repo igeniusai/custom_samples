@@ -3,12 +3,15 @@
 Pure transport: framing, connect, send_event, receive-loop dispatch.
 No business logic — adapter.py owns event routing.
 """
+
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import random
-from typing import Any, Awaitable, Callable
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +21,7 @@ def _backoff_delay(attempt: int, *, rng: Callable[[], float] = random.random) ->
 
     delay = min(30, 0.5 * 2**attempt) * (0.5 + 0.5 * rng())
     """
-    base = min(30.0, 0.5 * (2 ** attempt))
+    base = min(30.0, 0.5 * (2**attempt))
     return base * (0.5 + 0.5 * rng())
 
 
@@ -91,16 +94,12 @@ class DomynRelayClient:
         self._stop.set()
         ws, self._ws = self._ws, None
         if ws is not None:
-            try:
+            with contextlib.suppress(Exception):
                 await ws.close()
-            except Exception:
-                pass
         if self._task is not None:
             self._task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError, Exception):
                 await self._task
-            except (asyncio.CancelledError, Exception):
-                pass
             self._task = None
 
     async def _connect_loop(self) -> None:
@@ -109,9 +108,7 @@ class DomynRelayClient:
         attempt = 0
         while not self._stop.is_set():
             try:
-                async with websockets.connect(
-                    self._ws_url, additional_headers=self._headers
-                ) as ws:
+                async with websockets.connect(self._ws_url, additional_headers=self._headers) as ws:
                     self._ws = ws
                     attempt = 0
                     await self._consume(ws)
@@ -128,6 +125,6 @@ class DomynRelayClient:
             try:
                 await asyncio.wait_for(self._stop.wait(), timeout=delay)
                 break  # stop requested during sleep
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 pass
             attempt = min(attempt + 1, 6)
