@@ -4,6 +4,11 @@ from datetime import UTC, datetime
 from domyn_agents.agents.agent import Agent
 from domyn_agents.core.decorators import tool
 from domyn_agents.llm.openai import OpenAIProvider
+from domyn_agents.planner_strategy.context_management.full_messages import FullMessageContext
+from domyn_agents.planner_strategy.prompting.structural_tags_prompting import (
+    StructuralTagMessagePrompting,
+)
+from domyn_agents.planner_strategy.react import ReactPlannerStrategy
 
 # ---------------------------------------------------------------------------
 # LLM
@@ -24,6 +29,17 @@ def _get_llm() -> OpenAIProvider:
             "temperature": 0.7,
             "max_completion_tokens": 4000,
         },
+    )
+
+
+def _get_planner_with_stop() -> ReactPlannerStrategy:
+    return ReactPlannerStrategy(
+        use_stop=True,
+        context_manager=FullMessageContext(
+            prompting=StructuralTagMessagePrompting(),
+            narrow_non_visible_agents=True,
+            name="subagent_full_message_context",
+        ),
     )
 
 
@@ -70,6 +86,7 @@ math_agent = Agent(
     ),
     llm_provider=_get_llm(),
     tools=[add_numbers, multiply_numbers],
+    planner=_get_planner_with_stop(),
 )
 
 string_agent = Agent(
@@ -81,6 +98,7 @@ string_agent = Agent(
     ),
     llm_provider=_get_llm(),
     tools=[reverse_string, count_words],
+    planner=_get_planner_with_stop(),
 )
 
 agent = Agent(
