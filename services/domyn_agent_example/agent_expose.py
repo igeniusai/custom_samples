@@ -61,13 +61,42 @@ def count_words(text: str) -> int:
 # Agent
 # ---------------------------------------------------------------------------
 
-agent = Agent(
-    name="DomynAgent",
-    description="A helpful ReAct agent that can perform arithmetic, string operations, and tell the time.",
+math_agent = Agent(
+    name="MathAgent",
+    description="Specialist agent for arithmetic operations (addition, multiplication).",
     instruction=(
-        "You are a helpful assistant. Use the available tools to answer the user's request. "
-        "If the user updates tool parameters mid-conversation, continue with the new values."
+        "You are a math specialist. Use the available arithmetic tools to "
+        "compute the requested result and return it concisely."
     ),
     llm_provider=_get_llm(),
-    tools=[add_numbers, multiply_numbers, get_current_time, reverse_string, count_words],
+    tools=[add_numbers, multiply_numbers],
+)
+
+string_agent = Agent(
+    name="StringAgent",
+    description="Specialist agent for string operations (reverse, word count).",
+    instruction=(
+        "You are a string-processing specialist. Use the available tools to "
+        "transform or analyze the input text and return the result concisely."
+    ),
+    llm_provider=_get_llm(),
+    tools=[reverse_string, count_words],
+)
+
+agent = Agent(
+    name="DomynAgent",
+    description=(
+        "Orchestrator agent. Delegates arithmetic to MathAgent and string "
+        "operations to StringAgent; answers time-related questions directly."
+    ),
+    instruction=(
+        "You are an orchestrator. For arithmetic questions delegate to "
+        "MathAgent. For string operations delegate to StringAgent. For "
+        "time-related questions, use the get_current_time tool yourself. "
+        "If the user updates tool parameters mid-conversation, continue "
+        "with the new values."
+    ),
+    llm_provider=_get_llm(),
+    tools=[get_current_time],
+    sub_agents=[math_agent, string_agent],
 )
