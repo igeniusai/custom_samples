@@ -49,6 +49,7 @@ cp .env.example .env
 | `DOMYN_API_KEY` | API key from the Domyn platform |
 | `DOMYN_CHANNEL_ID` | WebSocket channel ID assigned to this subagent |
 | `DOMYN_SPACE_ID` | Your space ID on the platform |
+| `DOMYN_CONFIGURATION_ID` | (Optional) Platform configuration ID; targets a specific configuration when fetching delegate tools |
 | `DOMYN_BASE_URL` | Platform base URL |
 | `VLLM_API_KEY` | API key for the vLLM/LLM gateway |
 | `VLLM_BASE_URL` | Base URL of the LLM gateway (OpenAI-compatible) |

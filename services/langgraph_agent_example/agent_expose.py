@@ -20,11 +20,13 @@ if (
     and (channel_id := os.environ.get("DOMYN_CHANNEL_ID"))
     and (base_url := os.environ.get("DOMYN_BASE_URL"))
 ):
+    configuration_id = os.environ.get("DOMYN_CONFIGURATION_ID")
     try:
         _platform_tools = get_platform_tools(
             api_key=api_key,
             space_id=space_id,
             channel_id=channel_id,
+            configuration_id=configuration_id,
             base_url=base_url,
             relay=_default_relay,
         )
