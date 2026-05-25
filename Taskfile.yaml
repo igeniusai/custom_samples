@@ -34,6 +34,23 @@ tasks:
     prompt: "Deploy nginx Ingress controller to context '{{.context}}'?"
     cmd: kubectl apply --context {{.context}} -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/cloud/deploy.yaml
 
+  cluster:nginx-ingress:remove:
+    desc: Remove the nginx Ingress controller from the cluster.
+    summary: |
+      Deletes the official nginx Ingress controller manifest from the cluster
+      using the current kubectl context.
+
+      Overridable variables:
+        context — kubectl context to use (default: current context)
+
+      Examples:
+        task cluster:nginx-ingress:remove
+        task cluster:nginx-ingress:remove context=my-aks-cluster
+    vars:
+      context: '{{.context | default "docker-desktop"}}'
+    prompt: "Remove nginx Ingress controller from context '{{.context}}'?"
+    cmd: kubectl delete --context {{.context}} -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/cloud/deploy.yaml
+
   domyn-cli:install:
     desc: Install the domyn CLI via pipx.
     summary: |
