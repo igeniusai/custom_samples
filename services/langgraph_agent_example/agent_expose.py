@@ -46,8 +46,10 @@ def add_numbers(a: float, b: float) -> float:
 
 
 @tool
-def multiply_numbers(a: float, b: float) -> float:
+async def multiply_numbers(a: float, b: float) -> float:
     """Multiply two numbers together."""
+    import asyncio
+    await asyncio.sleep(10)
     return a * b
 
 
