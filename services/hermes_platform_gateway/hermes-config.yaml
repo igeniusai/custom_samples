@@ -26,6 +26,9 @@ agent:
   # messages into the chat. Default 180s; set 0 to disable. Without this
   # users see "Still working..." every 3 minutes during long turns.
   gateway_notify_interval: 0
+  reasoning_effort: "medium"   # empty = medium (default). Options: none, minimal, low, medium, high, xhigh (max)
+
+
 
 display:
   # How hermes handles a new message that arrives during an active turn.
@@ -34,15 +37,9 @@ display:
   # the new message behind the current one; nothing visible until the
   # current turn completes. "steer" injects as additional context.
   busy_input_mode: queue
-  # Suppress hermes' mid-turn narrative chat messages ("Ti aiuto a
-  # creare uno script…", "Let me check the docs first…", etc).
-  # Default true → hermes calls `interim_assistant_callback` for every
-  # bit of LLM text that lands alongside a tool call, each becoming its
-  # own outbound AGENT_END frame. Apps that treat AGENT_END as the
-  # turn-terminator break when an interim frame arrives mid-turn.
-  # With false hermes stays silent until the final reply, so each turn
-  # produces exactly one AGENT_END (the deliverable) followed by END.
-  # Trade-off: long turns appear silent in the chat until the final
-  # answer lands — TOOL_START/TOOL_END visibility frames still go out,
-  # which is what keeps the UI alive in the meantime.
-  interim_assistant_messages: false
+  # Mid-turn narrative ("Ti aiuto a creare uno script…") is enabled.
+  # The adapter routes these to LLM_END events (not AGENT_END), so
+  # apps that treat AGENT_END as the turn-terminator stay correct —
+  # only the final response and slash-command replies emit AGENT_END.
+  # See ``DomynPlatformAdapter.send`` for the routing logic.
+  interim_assistant_messages: true

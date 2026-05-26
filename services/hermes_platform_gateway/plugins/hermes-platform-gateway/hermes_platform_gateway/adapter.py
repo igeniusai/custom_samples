@@ -224,16 +224,27 @@ class DomynPlatformAdapter(BasePlatformAdapter):
         reply_to: str | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> SendResult:
-        """Emit AGENT_END for one visible chat message.
+        """Emit either RESPONSE (interim narrative) or AGENT_END (final).
 
-        Called multiple times per turn (interim narrative, "⏳ Still
-        working…" notifiers, the final reply). END is NOT emitted here
-        — that's per-turn, fired from ``on_processing_complete``.
+        Routing is by ``reply_to``:
+          - ``reply_to is None``: hermes' ``_interim_assistant_callback``
+            calls ``adapter.send`` directly (mid-turn narrative like "I'll
+            do X, then Y"). We emit ``RESPONSE`` with ``is_partial=True``
+            — semantically "incremental assistant text", not a thought,
+            and no need for a paired LLM_START.
+          - ``reply_to is not None``: the base class' ``_send_with_retry``
+            anchors final responses (and slash-command replies) to the
+            triggering message_id. We emit ``AGENT_END``.
+
+        END is NOT emitted here — that's per-turn, fired from
+        ``on_processing_complete``.
         """
         from domyn_agents.core import BaseEvent, ExecutionEventType, Part
 
         session_key = _build_session_key(self._channel_id, chat_id)
         turn = self._turn_by_session.get(session_key)
+        logger.warning("EVENT CONTENT: %s", content)
+        logger.warning("EVENT METADATA: %s", metadata)
         if turn is None:
             preview = (content or "")[:100]
             logger.warning(
@@ -243,16 +254,22 @@ class DomynPlatformAdapter(BasePlatformAdapter):
             )
             return SendResult(success=False, error="no prior AGENT_START")
 
+        is_final = reply_to is not None
+        event_type = (
+            ExecutionEventType.AGENT_END if is_final
+            else ExecutionEventType.RESPONSE
+        )
         # event_id is per-frame unique; let BaseEvent auto-generate.
         # Copying turn.event_id collides with TOOL_START (also fires
         # against the same turn) and confuses platforms that key on it.
         event = BaseEvent(
-            event_type=ExecutionEventType.AGENT_END,
+            event_type=event_type,
             author=turn.author,
             interaction_id=turn.interaction_id,
             turn_id=turn.turn_id,
             conversation_id=turn.conversation_id,
             content=[Part(text=content)] if content else [],
+            is_partial=not is_final,
         )
         try:
             await self._client.send_event(event)

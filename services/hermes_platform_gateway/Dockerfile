@@ -42,7 +42,14 @@ RUN pip install --no-cache-dir /opt/hermes-platform-gateway && \
     cp /opt/hermes-platform-gateway/plugin.yaml \
        ${HERMES_HOME}/plugins/hermes_platform_gateway/
 
-# 5) hermes config template + entrypoint that materialises it.
+# 5) i18n catalog — upstream hermes' pip install does NOT package its
+#    locales/ directory, so every t() call falls back to the raw key
+#    (you'd see "gateway.approve.session_singular" rendered verbatim in
+#    chat replies to /approve). We drop our own minimal en.yaml next to
+#    the installed agent/ package so agent.i18n._locales_dir() finds it.
+COPY locales/en.yaml /usr/local/lib/python3.11/site-packages/locales/en.yaml
+
+# 6) hermes config template + entrypoint that materialises it.
 #    gateway mode reads ~/.hermes/config.yaml via read_raw_config() which
 #    does NOT expand ${VAR} references — so we resolve them at container
 #    start with entrypoint.sh and write the result into $HERMES_HOME.
@@ -50,7 +57,7 @@ COPY hermes-config.yaml /opt/hermes-config.template.yaml
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
-# 6) Run hermes in gateway mode. The gateway is the headless, multi-session
+# 7) Run hermes in gateway mode. The gateway is the headless, multi-session
 #    runner — it doesn't open a TUI and doesn't need a TTY. AGENT_START
 #    events for any conversation_id arriving on the subscribed channel are
 #    routed by the gateway to a per-conversation hermes session.
