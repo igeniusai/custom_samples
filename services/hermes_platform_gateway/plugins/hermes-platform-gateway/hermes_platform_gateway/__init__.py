@@ -71,11 +71,16 @@ def register(ctx) -> None:
         from hermes_platform_gateway.client import GatewayConnection, build_ws_url
         ws_url = build_ws_url(base_url)
         headers = {"channel-id": channel_id, "space-id": space_id, "api-key": api_key}
+        def _on_stop() -> None:
+            logger.info("platform-gateway: injecting /stop to interrupt current generation")
+            ctx.inject_message("/stop")
+
         gateway = GatewayConnection(
             ws_url=ws_url,
             headers=headers,
             timeout=timeout,
             on_agent_start=_on_agent_start,
+            on_stop=_on_stop,
         )
         gateway.start()
     except Exception as exc:
@@ -152,9 +157,9 @@ def register(ctx) -> None:
         if turn is None:
             return
         if gateway._stop_requested.is_set():
-            logger.info("platform-gateway: turn cancelled by user, skipping AGENT_END response")
+            logger.info("platform-gateway: turn cancelled by user, sending stop acknowledgement")
             gateway._stop_requested.clear()
-            return
+            assistant_response = "Response stopped as requested."
         event = BaseEvent(
             event_type=ExecutionEventType.AGENT_END,
             author=turn.author,

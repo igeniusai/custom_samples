@@ -108,11 +108,13 @@ class GatewayConnection:
         headers: dict[str, str],
         timeout: float = 120.0,
         on_agent_start: Callable[["BaseEvent"], None] | None = None,
+        on_stop: Callable[[], None] | None = None,
     ) -> None:
         self._ws_url = ws_url
         self._headers = headers
         self._timeout = timeout
         self._on_agent_start = on_agent_start
+        self._on_stop = on_stop
         self._pending: dict[str, concurrent.futures.Future] = {}
         self._lock = threading.Lock()
         self._loop: asyncio.AbstractEventLoop | None = None
@@ -189,6 +191,11 @@ class GatewayConnection:
                 logger.info("platform-gateway: received AGENT_END from platform — stopping current turn")
                 self._stop_requested.set()
                 self._fail_pending("Execution cancelled by user")
+                if self._on_stop is not None:
+                    try:
+                        self._on_stop()
+                    except Exception as exc:
+                        logger.warning("platform-gateway: on_stop callback failed - %s", exc)
                 continue
 
             if event.event_type not in (
