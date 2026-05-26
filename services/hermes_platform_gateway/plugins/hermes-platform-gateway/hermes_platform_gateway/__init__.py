@@ -54,12 +54,16 @@ def register(ctx) -> None:
     # correlation IDs (author, interaction_id, turn_id, event_id).
     _turn_lock = threading.Lock()
     _current_turn: list[Any] = [None]  # [BaseEvent | None]
+    _generating: list[bool] = [False]  # [bool] — True while Hermes LLM loop is active
 
     def _on_agent_start(event: Any) -> None:
         text = _extract_user_text(event)
         if not text:
             logger.warning("platform-gateway: AGENT_START with no extractable text, skipping")
             return
+        # Clear any stale stop flag from a previous turn that completed before
+        # the cancel signal arrived (race condition: cancel arrives after post_llm_call).
+        gateway._stop_requested.clear()
         with _turn_lock:
             _current_turn[0] = event
         if not ctx.inject_message(text):
@@ -72,7 +76,10 @@ def register(ctx) -> None:
         ws_url = build_ws_url(base_url)
         headers = {"channel-id": channel_id, "space-id": space_id, "api-key": api_key}
         def _on_stop() -> None:
-            logger.info("platform-gateway: injecting /stop to interrupt current generation")
+            if not _generating[0]:
+                logger.info("platform-gateway: stop signal received but generation already finished — skipping /stop")
+                return
+            logger.info("platform-gateway: stop signal — injecting /stop to interrupt generation")
             ctx.inject_message("/stop")
 
         gateway = GatewayConnection(
@@ -145,11 +152,44 @@ def register(ctx) -> None:
     # path). Instead we deliver one final AGENT_END carrying the full
     # assistant text — same shape `domyn expose`'s Runtime uses.
 
-    def _on_turn_complete(
-        assistant_response: str = "",
-        session_id: str | None = None,
+    _STOP_MESSAGE = "Response stopped as per user request."
+
+    def _on_interrupted(
+        interrupted: bool = False,
         **_: Any,
     ) -> None:
+        # Fires at the end of every run_conversation() call. When interrupted=True
+        # and a stop was requested, post_llm_call never fires so we send the
+        # canned AGENT_END here.
+        if not interrupted or not gateway._stop_requested.is_set():
+            return
+        from domyn_agents.core import BaseEvent, ExecutionEventType, Part
+        with _turn_lock:
+            turn = _current_turn[0]
+            _current_turn[0] = None
+        gateway._stop_requested.clear()
+        if turn is None:
+            logger.warning("platform-gateway: interrupted but no active turn to acknowledge")
+            return
+        logger.info("platform-gateway: generation interrupted, sending canned AGENT_END for turn %s", turn.event_id)
+        event = BaseEvent(
+            event_type=ExecutionEventType.AGENT_END,
+            author=turn.author,
+            event_id=turn.event_id,
+            interaction_id=turn.interaction_id,
+            turn_id=turn.turn_id,
+            conversation_id=turn.conversation_id,
+            content=[Part(text=_STOP_MESSAGE)],
+        )
+        gateway.send_event(event)
+
+    def _on_turn_complete(
+        assistant_response: str = "",
+        **_: Any,
+    ) -> None:
+        # post_llm_call fires only when generation completed normally (no /stop).
+        # If a stop arrived after generation already finished (race condition),
+        # _stop_requested is still set — handle it here as a fallback.
         from domyn_agents.core import BaseEvent, ExecutionEventType, Part
         with _turn_lock:
             turn = _current_turn[0]
@@ -157,9 +197,8 @@ def register(ctx) -> None:
         if turn is None:
             return
         if gateway._stop_requested.is_set():
-            logger.info("platform-gateway: turn cancelled by user, sending stop acknowledgement")
             gateway._stop_requested.clear()
-            assistant_response = "Response stopped as requested."
+            assistant_response = _STOP_MESSAGE
         event = BaseEvent(
             event_type=ExecutionEventType.AGENT_END,
             author=turn.author,
@@ -172,7 +211,16 @@ def register(ctx) -> None:
         gateway.send_event(event)
         logger.debug("platform-gateway: sent AGENT_END for turn %s", turn.event_id)
 
+    def _on_generation_start(**_: Any) -> None:
+        _generating[0] = True
+
+    def _on_generation_end(**_: Any) -> None:
+        _generating[0] = False
+
+    ctx.register_hook("on_session_end", _on_interrupted)
     ctx.register_hook("post_llm_call", _on_turn_complete)
+    ctx.register_hook("pre_llm_call", _on_generation_start)
+    ctx.register_hook("on_session_end", _on_generation_end)
 
 
 def _make_handler(

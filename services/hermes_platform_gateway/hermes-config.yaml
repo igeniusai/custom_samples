@@ -7,6 +7,9 @@ model:
   api_key: ${VLLM_API_KEY}
   api_mode: chat_completions
 
+display:
+  busy_input_mode: interrupt
+
 plugins:
   enabled:
     - hermes_platform_gateway

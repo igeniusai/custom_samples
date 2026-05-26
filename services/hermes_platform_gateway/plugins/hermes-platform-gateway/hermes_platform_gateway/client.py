@@ -186,16 +186,20 @@ class GatewayConnection:
                 continue
 
             if event.event_type == ExecutionEventType.AGENT_END:
-                # An AGENT_END arriving from the platform (not echoed from Hermes itself,
-                # since the relay excludes the sender) is a cancellation signal.
-                logger.info("platform-gateway: received AGENT_END from platform — stopping current turn")
-                self._stop_requested.set()
-                self._fail_pending("Execution cancelled by user")
-                if self._on_stop is not None:
-                    try:
-                        self._on_stop()
-                    except Exception as exc:
-                        logger.warning("platform-gateway: on_stop callback failed - %s", exc)
+                # Only treat it as a cancellation signal if it carries the explicit
+                # user_cancelled error code. This avoids false triggers from echoed
+                # AGENT_ENDs that the plugin itself sent (normal turn completions).
+                if getattr(event, "error_code", None) == "user_cancelled":
+                    logger.info(
+                        "platform-gateway: received cancellation signal from platform — stopping current turn"
+                    )
+                    self._stop_requested.set()
+                    self._fail_pending("Execution cancelled by user")
+                    if self._on_stop is not None:
+                        try:
+                            self._on_stop()
+                        except Exception as exc:
+                            logger.warning("platform-gateway: on_stop callback failed - %s", exc)
                 continue
 
             if event.event_type not in (
