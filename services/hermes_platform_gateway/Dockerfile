@@ -26,32 +26,37 @@ RUN pip install --no-cache-dir \
 # 3) domyn-agents — required by the gateway plugin for relay event models.
 #    Bundled as a wheel under ./wheels so the build doesn't need the private
 #    igenius PyPI index.
+#    `langchain-core` is pulled in because the `domyn` CLI eagerly imports the
+#    langgraph integration (needed by step 4's `domyn install-plugin` call).
 COPY wheels/ wheels/
-RUN pip install --no-cache-dir wheels/domyn_agents-*.whl
+RUN pip install --no-cache-dir wheels/domyn_agents-*.whl langchain-core
 
-# 4) hermes-platform-gateway plugin. Two installs are needed:
-#    - The pip package goes into site-packages so the plugin's
-#      `from hermes_platform_gateway.client import …` imports resolve.
-#    - The manifest + __init__.py are also dropped under $HERMES_HOME/plugins
-#      so hermes' discovery sees a `plugin.yaml` and calls `register(ctx)`.
-COPY plugins/hermes-platform-gateway/ /opt/hermes-platform-gateway/
-RUN pip install --no-cache-dir /opt/hermes-platform-gateway && \
-    mkdir -p ${HERMES_HOME}/plugins/hermes_platform_gateway && \
-    cp /opt/hermes-platform-gateway/hermes_platform_gateway/*.py \
-       ${HERMES_HOME}/plugins/hermes_platform_gateway/ && \
-    cp /opt/hermes-platform-gateway/plugin.yaml \
-       ${HERMES_HOME}/plugins/hermes_platform_gateway/
+# 4) hermes-platform-gateway plugin.
+#    `domyn install-plugin` drops the vendored plugin source plus its
+#    `plugin.yaml` manifest directly into ${HERMES_HOME}/plugins/hermes_platform_gateway/,
+#    which is what hermes' on-disk plugin scan picks up at startup. No pip
+#    install or manual cp is needed — the plugin uses relative imports and
+#    `domyn-agents` is already on sys.path from step 3.
+RUN domyn install-plugin --framework hermes
 
-# 5) hermes config:
-#    - point hermes' default model at the vLLM gateway (api_key + base_url +
-#      model come from env vars at startup via hermes' ${VAR} expansion);
-#    - opt-in the platform-gateway plugin — standalone-kind plugins are
-#      skipped unless explicitly listed under `plugins.enabled`.
-COPY hermes-config.yaml ${HERMES_HOME}/config.yaml
+# 5) i18n catalog — upstream hermes' pip install does NOT package its
+#    locales/ directory, so every t() call falls back to the raw key
+#    (you'd see "gateway.approve.session_singular" rendered verbatim in
+#    chat replies to /approve). We drop our own minimal en.yaml next to
+#    the installed agent/ package so agent.i18n._locales_dir() finds it.
+COPY locales/en.yaml /usr/local/lib/python3.11/site-packages/locales/en.yaml
 
-# 6) Run hermes as a relay-attached worker. Stdin is closed in containers,
-#    so we drop into `hermes chat` non-interactively — the plugin's
-#    `on_session_start` hook will still fire, the WS subscriber stays open
-#    in a daemon thread, and AGENT_START events injected from the platform
-#    drive the conversation.
-CMD ["hermes", "chat"]
+# 6) hermes config template + entrypoint that materialises it.
+#    gateway mode reads ~/.hermes/config.yaml via read_raw_config() which
+#    does NOT expand ${VAR} references — so we resolve them at container
+#    start with entrypoint.sh and write the result into $HERMES_HOME.
+COPY hermes-config.yaml /opt/hermes-config.template.yaml
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+# 7) Run hermes in gateway mode. The gateway is the headless, multi-session
+#    runner — it doesn't open a TUI and doesn't need a TTY. AGENT_START
+#    events for any conversation_id arriving on the subscribed channel are
+#    routed by the gateway to a per-conversation hermes session.
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["hermes", "gateway"]

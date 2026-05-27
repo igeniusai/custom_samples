@@ -5,3 +5,4 @@ __pycache__/
 *.pyo
 *.pyd
 .Pythonservices/custom_ui_guardrail/data/
+*.whl
