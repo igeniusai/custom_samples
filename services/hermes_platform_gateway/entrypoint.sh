@@ -20,6 +20,18 @@ TARGET="$HERMES_HOME/config.yaml"
 
 mkdir -p "$HERMES_HOME"
 
+# Re-sync the platform-gateway plugin from the image into $HERMES_HOME on
+# every boot. $HERMES_HOME is a docker-compose named volume that persists
+# across rebuilds, so plugin files copied there at image-build time get
+# shadowed by whatever the volume captured on its first run. Without this
+# step, `docker compose build` updates the image but the running plugin
+# stays stale until you `down -v`.
+PLUGIN_SRC=/opt/hermes-platform-gateway/hermes_platform_gateway
+PLUGIN_MANIFEST=/opt/hermes-platform-gateway/plugin.yaml
+PLUGIN_DEST="$HERMES_HOME/plugins/hermes_platform_gateway"
+mkdir -p "$PLUGIN_DEST"
+cp -f "$PLUGIN_SRC"/*.py "$PLUGIN_MANIFEST" "$PLUGIN_DEST/"
+
 python3 - <<'PY'
 import os
 import re
