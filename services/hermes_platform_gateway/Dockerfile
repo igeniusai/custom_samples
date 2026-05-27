@@ -26,8 +26,10 @@ RUN pip install --no-cache-dir \
 # 3) domyn-agents — required by the gateway plugin for relay event models.
 #    Bundled as a wheel under ./wheels so the build doesn't need the private
 #    igenius PyPI index.
+#    `langchain-core` is pulled in because the `domyn` CLI eagerly imports the
+#    langgraph integration (needed by step 4's `domyn install-plugin` call).
 COPY wheels/ wheels/
-RUN pip install --no-cache-dir wheels/domyn_agents-*.whl
+RUN pip install --no-cache-dir wheels/domyn_agents-*.whl langchain-core
 
 # 4) hermes-platform-gateway plugin. Two installs are needed:
 #    - The pip package goes into site-packages so the plugin's
