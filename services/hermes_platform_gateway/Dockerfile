@@ -34,7 +34,13 @@ RUN pip install --no-cache-dir wheels/domyn_agents-*.whl
 #      `from hermes_platform_gateway.client import …` imports resolve.
 #    - The manifest + __init__.py are also dropped under $HERMES_HOME/plugins
 #      so hermes' discovery sees a `plugin.yaml` and calls `register(ctx)`.
-COPY plugins/hermes-platform-gateway/ /opt/hermes-platform-gateway/
+#
+#    The plugin project is scaffolded from the vendored source inside
+#    domyn-agents via `domyn install-plugin` — no in-repo plugin tree needed.
+#    The hermes-specific manifest (plugin.yaml) is dropped in afterwards
+#    since `domyn install-plugin` doesn't generate one.
+RUN domyn install-plugin /opt/hermes-platform-gateway --agent-type hermes
+COPY plugin.yaml /opt/hermes-platform-gateway/plugin.yaml
 RUN pip install --no-cache-dir /opt/hermes-platform-gateway && \
     mkdir -p ${HERMES_HOME}/plugins/hermes_platform_gateway && \
     cp /opt/hermes-platform-gateway/hermes_platform_gateway/*.py \
