@@ -1,14 +1,19 @@
+import logging
 import os
 from datetime import UTC, datetime
 
 from domyn_agents.agents.agent import Agent
 from domyn_agents.core.decorators import tool
 from domyn_agents.llm.openai import OpenAIProvider
-from domyn_agents.planner_strategy.context_management.full_messages import FullMessageContext
-from domyn_agents.planner_strategy.prompting.structural_tags_prompting import (
-    StructuralTagMessagePrompting,
+from domyn_agents.logger import set_logger
+from domyn_agents.planner_strategy.tool_use import ToolUsePlannerStrategy
+from domyn_agents.tools.delegate_tool import DelegateTool
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
 )
-from domyn_agents.planner_strategy.react import ReactPlannerStrategy
+set_logger(logging.getLogger("domyn_agents"))
 
 # ---------------------------------------------------------------------------
 # LLM
@@ -32,15 +37,8 @@ def _get_llm() -> OpenAIProvider:
     )
 
 
-def _get_planner_with_stop() -> ReactPlannerStrategy:
-    return ReactPlannerStrategy(
-        use_stop=True,
-        context_manager=FullMessageContext(
-            prompting=StructuralTagMessagePrompting(),
-            narrow_non_visible_agents=True,
-            name="subagent_full_message_context",
-        ),
-    )
+def _get_planner_with_stop() -> ToolUsePlannerStrategy:
+    return ToolUsePlannerStrategy(use_stop=True)
 
 
 # ---------------------------------------------------------------------------
@@ -74,6 +72,14 @@ def count_words(text: str) -> int:
 
 
 # ---------------------------------------------------------------------------
+# Platform delegate tools
+# Schema (parameters) is auto-fetched from the platform at expose-time by
+# DomynAgentRuntime.initialize(); only the tool name is required here.
+# ---------------------------------------------------------------------------
+
+web_search = DelegateTool(tool_name="web_search")
+
+# ---------------------------------------------------------------------------
 # Agent
 # ---------------------------------------------------------------------------
 
@@ -103,18 +109,22 @@ string_agent = Agent(
 
 agent = Agent(
     name="DomynAgent",
+    planner=ToolUsePlannerStrategy(),
     description=(
         "Orchestrator agent. Delegates arithmetic to MathAgent and string "
-        "operations to StringAgent; answers time-related questions directly."
+        "operations to StringAgent; answers time-related questions and "
+        "web searches directly."
     ),
     instruction=(
         "You are an orchestrator. For arithmetic questions delegate to "
         "MathAgent. For string operations delegate to StringAgent. For "
-        "time-related questions, use the get_current_time tool yourself. "
+        "time-related questions use the get_current_time tool. "
+        "For questions that require current or external information use "
+        "the web_search tool. "
         "If the user updates tool parameters mid-conversation, continue "
         "with the new values."
     ),
     llm_provider=_get_llm(),
-    tools=[get_current_time],
+    tools=[get_current_time, web_search],
     sub_agents=[math_agent, string_agent],
 )
