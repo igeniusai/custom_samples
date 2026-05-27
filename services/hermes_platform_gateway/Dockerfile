@@ -42,7 +42,7 @@ RUN pip install --no-cache-dir wheels/domyn_agents-*.whl langchain-core
 #    The hermes-specific manifest (plugin.yaml) is dropped in afterwards
 #    since `domyn install-plugin` doesn't generate one.
 RUN domyn install-plugin /opt/hermes-platform-gateway --agent-type hermes
-COPY plugin.yaml /opt/hermes-platform-gateway/plugin.yaml
+
 RUN pip install --no-cache-dir /opt/hermes-platform-gateway && \
     mkdir -p ${HERMES_HOME}/plugins/hermes_platform_gateway && \
     cp /opt/hermes-platform-gateway/hermes_platform_gateway/*.py \
