@@ -37,7 +37,7 @@ RUN pip install --no-cache-dir wheels/domyn_agents-*.whl langchain-core
 #    which is what hermes' on-disk plugin scan picks up at startup. No pip
 #    install or manual cp is needed — the plugin uses relative imports and
 #    `domyn-agents` is already on sys.path from step 3.
-RUN domyn install-plugin --agent-type hermes
+RUN domyn install-plugin --framework hermes
 
 # 5) i18n catalog — upstream hermes' pip install does NOT package its
 #    locales/ directory, so every t() call falls back to the raw key

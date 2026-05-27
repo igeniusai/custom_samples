@@ -27,7 +27,7 @@ mkdir -p "$HERMES_HOME"
 # pulls the current vendored source out of the domyn-agents wheel and
 # overwrites the plugin directory inside the volume, keeping it in sync with
 # the image without requiring a `docker compose down -v`.
-domyn install-plugin --agent-type hermes --force --yes
+domyn install-plugin --framework hermes --force
 
 python3 - <<'PY'
 import os
