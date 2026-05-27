@@ -9,7 +9,7 @@ model:
 
 plugins:
   enabled:
-    - hermes_platform_gateway
+    - hermes-platform-gateway
 
 agent:
   # The Domyn canvas is the source of truth for tools on this worker. Drop

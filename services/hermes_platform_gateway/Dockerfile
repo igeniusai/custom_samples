@@ -31,24 +31,13 @@ RUN pip install --no-cache-dir \
 COPY wheels/ wheels/
 RUN pip install --no-cache-dir wheels/domyn_agents-*.whl langchain-core
 
-# 4) hermes-platform-gateway plugin. Two installs are needed:
-#    - The pip package goes into site-packages so the plugin's
-#      `from hermes_platform_gateway.client import …` imports resolve.
-#    - The manifest + __init__.py are also dropped under $HERMES_HOME/plugins
-#      so hermes' discovery sees a `plugin.yaml` and calls `register(ctx)`.
-#
-#    The plugin project is scaffolded from the vendored source inside
-#    domyn-agents via `domyn install-plugin` — no in-repo plugin tree needed.
-#    The hermes-specific manifest (plugin.yaml) is dropped in afterwards
-#    since `domyn install-plugin` doesn't generate one.
-RUN domyn install-plugin /opt/hermes-platform-gateway --agent-type hermes
-
-RUN pip install --no-cache-dir /opt/hermes-platform-gateway && \
-    mkdir -p ${HERMES_HOME}/plugins/hermes_platform_gateway && \
-    cp /opt/hermes-platform-gateway/hermes_platform_gateway/*.py \
-       ${HERMES_HOME}/plugins/hermes_platform_gateway/ && \
-    cp /opt/hermes-platform-gateway/plugin.yaml \
-       ${HERMES_HOME}/plugins/hermes_platform_gateway/
+# 4) hermes-platform-gateway plugin.
+#    `domyn install-plugin` drops the vendored plugin source plus its
+#    `plugin.yaml` manifest directly into ${HERMES_HOME}/plugins/hermes_platform_gateway/,
+#    which is what hermes' on-disk plugin scan picks up at startup. No pip
+#    install or manual cp is needed — the plugin uses relative imports and
+#    `domyn-agents` is already on sys.path from step 3.
+RUN domyn install-plugin --agent-type hermes
 
 # 5) i18n catalog — upstream hermes' pip install does NOT package its
 #    locales/ directory, so every t() call falls back to the raw key

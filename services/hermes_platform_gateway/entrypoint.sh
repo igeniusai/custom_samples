@@ -20,17 +20,14 @@ TARGET="$HERMES_HOME/config.yaml"
 
 mkdir -p "$HERMES_HOME"
 
-# Re-sync the platform-gateway plugin from the image into $HERMES_HOME on
-# every boot. $HERMES_HOME is a docker-compose named volume that persists
-# across rebuilds, so plugin files copied there at image-build time get
-# shadowed by whatever the volume captured on its first run. Without this
-# step, `docker compose build` updates the image but the running plugin
-# stays stale until you `down -v`.
-PLUGIN_SRC=/opt/hermes-platform-gateway/hermes_platform_gateway
-PLUGIN_MANIFEST=/opt/hermes-platform-gateway/plugin.yaml
-PLUGIN_DEST="$HERMES_HOME/plugins/hermes_platform_gateway"
-mkdir -p "$PLUGIN_DEST"
-cp -f "$PLUGIN_SRC"/*.py "$PLUGIN_MANIFEST" "$PLUGIN_DEST/"
+# Re-sync the platform-gateway plugin from the vendored source on every boot.
+# $HERMES_HOME is a docker-compose named volume that persists across rebuilds,
+# so anything written into it at image-build time gets shadowed by the volume's
+# captured contents on subsequent runs. Re-running `domyn install-plugin --force`
+# pulls the current vendored source out of the domyn-agents wheel and
+# overwrites the plugin directory inside the volume, keeping it in sync with
+# the image without requiring a `docker compose down -v`.
+domyn install-plugin --agent-type hermes --force --yes
 
 python3 - <<'PY'
 import os
