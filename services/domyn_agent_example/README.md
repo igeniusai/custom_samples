@@ -77,6 +77,7 @@ Connect to the platform:
 ```bash
 source .env
 domyn expose agent_expose:agent \
+    --framework   domyn \
     --channel-id  $DOMYN_CHANNEL_ID \
     --space-id    $DOMYN_SPACE_ID \
     --base-url    $DOMYN_BASE_URL
@@ -200,7 +201,7 @@ Platform orchestrator
         │
         │  AGENT_START (via WebSocket relay)
         ▼
-domyn expose agent_expose:agent
+domyn expose agent_expose:agent --framework domyn
         │
         │  Receives AGENT_START, extracts task text
         │  Runs domyn Runner with the Agent
@@ -213,6 +214,6 @@ Agent ReAct loop
         └── RESPONSE → streamed back to platform
 ```
 
-The `domyn expose` command auto-detects that `agent_expose:agent` is a domyn `Agent` instance and uses the `DomynAgentRuntime` — no input mapper or LangChain callbacks required.
+The `--framework domyn` flag tells `domyn expose` to use the `DomynAgentRuntime` — no input mapper or LangChain callbacks required.
 
 Multi-turn conversations are supported: the agent maintains conversation history per `conversation_id` across calls.

@@ -15,6 +15,7 @@ COPY agent_expose.py .
 # All required values come from environment variables (see .env.example)
 CMD ["sh", "-c", \
     "domyn expose agent_expose:agent \
+        --framework  domyn \
         --channel-id $DOMYN_CHANNEL_ID \
         --space-id   $DOMYN_SPACE_ID \
         --base-url   $DOMYN_BASE_URL"]
