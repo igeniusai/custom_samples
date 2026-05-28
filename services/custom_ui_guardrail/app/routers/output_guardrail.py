@@ -95,6 +95,7 @@ async def get_output_admin_ui() -> HTMLResponse:
 
 @router.get("/verdict-history/data")
 async def get_output_verdict_history_data(message_id: str | None = None) -> dict:
+    #"on_event_triggers": ["agent_call", "tool_start", "tool_update", "response"] to also filter thoughts
     return _get_verdict_data(message_id)
 
 

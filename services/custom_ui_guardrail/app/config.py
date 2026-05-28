@@ -73,6 +73,7 @@ class JudgeVerdict(BaseModel):
     verdict: Verdict
     reason: str
     output: str
+    label: str | None = None  # "thought" or "content", set by the guardrail pipeline
 
 
 # ---------------------------------------------------------------------------

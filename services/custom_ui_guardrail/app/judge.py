@@ -195,6 +195,25 @@ def make_hook_error(error_code: str, error_message: str) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
+# Internal helpers
+# ---------------------------------------------------------------------------
+
+
+def _record_verdict(
+    verdict: JudgeVerdict,
+    turn_id: Any,
+    state: GuardrailState,
+    guardrail_name: str,
+    label: str,
+) -> None:
+    verdict.label = label
+    if turn_id is not None:
+        state.verdict_history.setdefault(str(turn_id), []).append(verdict)
+    else:
+        print(f"[judge] {guardrail_name} {label} verdict NOT saved — turn_id is None")
+
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
@@ -206,6 +225,10 @@ async def evaluate(
 ) -> dict[str, Any]:
     """
     Evaluate a single event against the guardrail policy.
+
+    Thought and content checks run in parallel when both are present.
+    Rejections take priority (thought over content); modifications are
+    applied to their respective fields in the returned event.
 
     Returns a hook result dict ready to be returned by a FastAPI endpoint.
     """
@@ -220,63 +243,145 @@ async def evaluate(
         return make_hook_error("llm_not_configured", msg)
 
     event_type = event.get("event_type", "event")
-    content_text = "\n".join(
-        (part.get("text") or "") for part in event.get("content", [])
-    )
-
-    messages: list[dict[str, str]] = [
-        {"role": "system", "content": _SYSTEM_PROMPT.format(policy=state.policy)},
-        {
-            "role": "user",
-            "content": f"Judge the following {event_type} according to the policy.\n\n{content_text}",
-        },
-    ]
-
-    try:
-        verdict = await _generate_verdict(messages, state)
-        turn_id = event.get("turn_id")
-        if turn_id is not None:
-            state.verdict_history.setdefault(str(turn_id), []).append(verdict)
-        else:
-            print(f"[judge] {guardrail_name} verdict NOT saved — turn_id is None")
-    except httpx.HTTPStatusError as exc:
-        msg = f"LLM provider returned HTTP {exc.response.status_code}: {exc.response.text[:200]}"
-        print(f"[judge] {guardrail_name} error: {msg}")
-        return make_hook_error("llm_http_error", msg)
-    except Exception as exc:
-        msg = str(exc)
-        print(f"[judge] {guardrail_name} error: {msg}")
-        return make_hook_error("guardrail_error", msg)
-
+    turn_id = event.get("turn_id")
     output_event = copy.deepcopy(event)
 
-    match verdict.verdict:
-        case Verdict.APPROVED:
-            passed = True
+    # ------------------------------------------------------------------
+    # Build coroutines for whichever fields are present
+    # ------------------------------------------------------------------
+    action = event.get("action") or {}
+    thought_text = action.get("thought")
 
-        case Verdict.REJECTED:
-            output_event["event_type"] = "response"
-            output_event["author"] = guardrail_name
-            output_event["content"] = [
-                {"text": verdict.output or "Your message was blocked by the system."}
-            ]
-            output_event["timestamp"] = datetime.now().isoformat()
-            output_event["event_id"] = str(uuid.uuid4())
-            output_event["is_partial"] = False
-            passed = False
+    content_parts = event.get("content", [])
+    content_text = "\n".join((part.get("text") or "") for part in content_parts)
+    has_content = bool(content_parts and content_text.strip())
 
-        case Verdict.MODIFIED:
-            modified_warning = (
-                f"\n\n*[SYSTEM NOTE - {guardrail_name}]: This content was intentionally modified to comply with policy. "
-                f"This modified version is the one that will be considered from now on.*"
+    labels: list[str] = []
+    coros = []
+
+    if thought_text:
+        coros.append(
+            _generate_verdict(
+                [
+                    {
+                        "role": "system",
+                        "content": _SYSTEM_PROMPT.format(policy=state.policy),
+                    },
+                    {
+                        "role": "user",
+                        "content": (
+                            f"Judge the following {event_type} thought according to the policy."
+                            f"\n\n{thought_text}"
+                        ),
+                    },
+                ],
+                state,
             )
-            task = verdict.output + modified_warning
-            output_event["content"] = [{"text": task}]
-            if output_event.get("event_type") == "agent_start":
-                output_event["action"]["parameters"] = {"task": task}
-            passed = False
+        )
+        labels.append("thought")
 
-        case _:
-            passed = True
+    if has_content:
+        coros.append(
+            _generate_verdict(
+                [
+                    {
+                        "role": "system",
+                        "content": _SYSTEM_PROMPT.format(policy=state.policy),
+                    },
+                    {
+                        "role": "user",
+                        "content": (
+                            f"Judge the following {event_type} according to the policy."
+                            f"\n\n{content_text}"
+                        ),
+                    },
+                ],
+                state,
+            )
+        )
+        labels.append("content")
 
-    return _make_hook_result(output_event, passed, verdict.reason, guardrail_name)
+    if not coros:
+        return {"modified_event": output_event}
+
+    # ------------------------------------------------------------------
+    # Run in parallel, then surface the first error (thought before content)
+    # ------------------------------------------------------------------
+    raw_results = await asyncio.gather(*coros, return_exceptions=True)
+
+    for label, result in zip(labels, raw_results):
+        if isinstance(result, Exception):
+            exc = result
+            if isinstance(exc, httpx.HTTPStatusError):
+                msg = f"LLM provider returned HTTP {exc.response.status_code}: {exc.response.text[:200]}"
+                error_code = "llm_http_error"
+            else:
+                msg = str(exc)
+                error_code = "guardrail_error"
+            print(f"[judge] {guardrail_name} {label} error: {msg}")
+            return make_hook_error(error_code, msg)
+
+    verdicts: dict[str, JudgeVerdict] = {}
+    for label, result in zip(labels, raw_results):
+        verdict = result  # type: ignore[assignment]
+        _record_verdict(verdict, turn_id, state, guardrail_name, label)
+        verdicts[label] = verdict
+
+    # ------------------------------------------------------------------
+    # Collect reasons, then apply results:
+    #   1. rejections (thought takes priority when both are rejected)
+    #   2. modifications to their respective fields
+    # ------------------------------------------------------------------
+    thought_verdict = verdicts.get("thought")
+    content_verdict = verdicts.get("content")
+
+    reasons: list[str] = []
+    if thought_verdict:
+        reasons.append(f"thought: {thought_verdict.reason}")
+    if content_verdict:
+        reasons.append(f"content: {content_verdict.reason}")
+    overall_reason = "; ".join(reasons)
+
+    # Use the first rejected verdict's output text (thought takes priority),
+    # but overall_reason already contains both reasons so both are always shown.
+    first_rejected = next(
+        (
+            v
+            for v in [thought_verdict, content_verdict]
+            if v and v.verdict == Verdict.REJECTED
+        ),
+        None,
+    )
+    if first_rejected:
+        output_event["event_type"] = "response"
+        output_event["author"] = guardrail_name
+        output_event["content"] = [
+            {"text": first_rejected.output or "Your message was blocked by the system."}
+        ]
+        output_event["timestamp"] = datetime.now().isoformat()
+        output_event["event_id"] = str(uuid.uuid4())
+        output_event["is_partial"] = False
+        return _make_hook_result(output_event, False, overall_reason, guardrail_name)
+
+    passed = True
+
+    if thought_verdict and thought_verdict.verdict == Verdict.MODIFIED:
+        modified_warning = (
+            f"\n\n*[SYSTEM NOTE - {guardrail_name}]: This thought was intentionally modified to comply with policy. "
+            f"This modified version is the one that will be considered from now on.*"
+        )
+        output_event["action"]["thought"] = thought_verdict.output + modified_warning
+        passed = False
+
+    if content_verdict and content_verdict.verdict == Verdict.MODIFIED:
+        modified_warning = (
+            f"\n\n*[SYSTEM NOTE - {guardrail_name}]: This content was intentionally modified to comply with policy. "
+            f"This modified version is the one that will be considered from now on.*"
+        )
+        task = content_verdict.output + modified_warning
+        output_event["content"] = [{"text": task}]
+        if output_event.get("event_type") == "agent_start":
+            output_event["action"]["parameters"] = {"task": task}
+        passed = False
+
+    return _make_hook_result(output_event, passed, overall_reason, guardrail_name)
