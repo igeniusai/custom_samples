@@ -75,6 +75,7 @@ Connect to the platform:
 ```bash
 source .env
 domyn expose loan_assessment_graph:graph \
+    --framework   langgraph \
     --channel-id  $DOMYN_CHANNEL_ID \
     --space-id    $DOMYN_SPACE_ID \
     --base-url    $DOMYN_BASE_URL

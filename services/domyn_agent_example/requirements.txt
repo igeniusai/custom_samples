@@ -1,0 +1,3 @@
+# Install domyn-agents from the bundled wheel in ./wheels/
+# Run: pip install wheels/domyn_agents-*.whl
+# No additional dependencies required — domyn-agents is self-contained.
