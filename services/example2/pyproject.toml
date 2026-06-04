@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.135.1",
-    "fastmcp>=3.1.0",
+    "fastmcp>=3.2.0",
     "kaleido>=1.2.0",
     "plotly>=6.6.0",
     "pydantic-settings>=2.13.1",
