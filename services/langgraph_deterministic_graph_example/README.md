@@ -49,6 +49,7 @@ cp .env.example .env
 | `DOMYN_API_KEY` | API key from the Domyn platform |
 | `CHANNEL_ID` | WebSocket channel ID assigned to this subagent |
 | `SPACE_ID` | Your workspace ID on the platform |
+| `CONFIGURATION_ID` | (Optional) Platform configuration ID; targets a specific configuration when registering invocation parameters |
 | `PLATFORM_BASE_URL` | Platform base URL (e.g. `api.analy2.crystal.io`) |
 
 ---
@@ -74,6 +75,7 @@ Connect to the platform:
 ```bash
 source .env
 domyn expose loan_assessment_graph:graph \
+    --framework   langgraph \
     --channel-id  $DOMYN_CHANNEL_ID \
     --space-id    $DOMYN_SPACE_ID \
     --base-url    $DOMYN_BASE_URL

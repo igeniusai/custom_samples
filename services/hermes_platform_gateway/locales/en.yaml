@@ -1,0 +1,55 @@
+# Minimal i18n catalog for the Domyn worker.
+#
+# Hermes' ``pip install`` from git doesn't package the ``locales/``
+# directory shipped in the repo, so the in-container i18n catalog is
+# missing and every ``t()`` call falls back to the raw key (you'd see
+# things like ``gateway.approve.session_singular`` rendered verbatim in
+# chat). We bake this file in via the Dockerfile to backfill the keys
+# hermes' gateway emits during normal slash-command operation.
+#
+# Scope is deliberately narrow — we ship only the keys that surface as
+# user-facing text in this deployment (approval / deny flows, draining,
+# expired-approval notices, the bundled ``approval.*`` prompt strings).
+# Other ``t()`` calls hermes makes will still fall back to the raw key
+# until upstream fixes its packaging or we expand this file.
+
+approval:
+  dangerous_header: "⚠️  DANGEROUS COMMAND: {description}"
+  choose_long:     "      [o]nce  |  [s]ession  |  [a]lways  |  [d]eny"
+  choose_short:    "      [o]nce  |  [s]ession  |  [d]eny"
+  prompt_long:     "      Choice [o/s/a/D]: "
+  prompt_short:    "      Choice [o/s/D]: "
+  timeout:         "      ⏱ Timeout - denying command"
+  allowed_once:    "      ✓ Allowed once"
+  allowed_session: "      ✓ Allowed for this session"
+  allowed_always:  "      ✓ Added to permanent allowlist"
+  denied:          "      ✗ Denied"
+  cancelled:       "      ✗ Cancelled"
+  blocklist_message: "This command is on the unconditional blocklist and cannot be approved."
+
+gateway:
+  approval_expired: "⚠️ Approval expired (agent is no longer waiting). Ask the agent to try again."
+  draining:         "⏳ Draining {count} active agent(s) before restart..."
+  goal_cleared:     "✓ Goal cleared."
+  no_active_goal:   "No active goal."
+  config_read_failed: "⚠️ Could not read config.yaml: {error}"
+  config_save_failed: "⚠️ Could not save config: {error}"
+
+  # /approve replies — key shape is gateway.approve.{choice}_{plural}
+  # where choice ∈ {once, session, always}, plural ∈ {singular, plural}.
+  # See gateway/run.py around line 13455.
+  approve:
+    no_pending: "No pending command to approve."
+    once_singular:    "✅ Command approved. The agent is resuming..."
+    once_plural:      "✅ {count} commands approved. The agent is resuming..."
+    session_singular: "✅ Command approved (pattern approved for this session). The agent is resuming..."
+    session_plural:   "✅ {count} commands approved (pattern approved for this session). The agent is resuming..."
+    always_singular:  "✅ Command approved (pattern approved permanently). The agent is resuming..."
+    always_plural:    "✅ {count} commands approved (pattern approved permanently). The agent is resuming..."
+
+  # /deny replies — symmetric shape to /approve.
+  deny:
+    no_pending:       "No pending command to deny."
+    stale:            "❌ Command denied (approval was stale)."
+    denied_singular:  "❌ Command denied. The agent is resuming with a BLOCKED result."
+    denied_plural:    "❌ {count} commands denied. The agent is resuming with BLOCKED results."

@@ -17,6 +17,7 @@ COPY loan_assessment_graph.py .
 # All required values come from environment variables (see .env.example)
 CMD ["sh", "-c", \
     "domyn expose loan_assessment_graph:graph \
+        --framework  langgraph \
         --channel-id $CHANNEL_ID \
         --space-id   $SPACE_ID \
         --base-url   $PLATFORM_BASE_URL"]
