@@ -20,9 +20,15 @@ services:
     ingress:
       enabled: true
       host: "blueprint"
-      ingressClass: "nginx"
+      # ingressClass: "kong"
+      ingressClass: "azure-application-gateway"
       annotations:
+        # konghq.com/strip-path: "true"
+        # konghq.com/protocols: https
+        # konghq.com/https-redirect-status-code: "308"
         cert-manager.io/cluster-issuer: "letsencrypt"
+        appgw.ingress.kubernetes.io/health-probe-path: /health
+        appgw.ingress.kubernetes.io/ssl-redirect: "true"
       portName: http
       exposeName: "http"
       targetPort: 8080

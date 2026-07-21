@@ -12,7 +12,7 @@ GET  /input-guardrail/.well-known/domyn-custom-ui — discovery metadata
 import string
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
 from app.config import TEMPLATES_DIR, GuardrailState, JudgeVerdict, input_state, save_state
@@ -70,7 +70,8 @@ def _get_verdict_data(message_id: str | None) -> dict[str, list[dict]]:
 
 
 @router.post("")
-async def run_input_guardrail(body: GuardrailRequest) -> dict[str, Any]:
+async def run_input_guardrail(body: GuardrailRequest, request: Request) -> dict[str, Any]:
+    print(request.headers)
     return await evaluate(body, input_state, _GUARDRAIL_NAME)
 
 

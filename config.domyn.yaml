@@ -13,3 +13,5 @@ containers:
   platform: "linux/amd64"
 services:
   path: ./services/
+  build_context:
+    langgraph_agent_controller: ./services/

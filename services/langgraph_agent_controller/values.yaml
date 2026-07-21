@@ -15,5 +15,8 @@ services:
             targetPort: 8080
             name: http
             protocol: TCP
+    env:
+      - name: AGENT_WORKDIR
+        value: "/srv/agent"
     ingress:
       enabled: false

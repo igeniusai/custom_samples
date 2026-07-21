@@ -27,7 +27,7 @@ metadata:
     {{- include "service.labels" $ | nindent 4 }}
     app.kubernetes.io/component: {{ .name }}
   annotations:
-    kubernetes.io/ingress.class: {{ .ingress.ingressClass | default "nginx" }}
+    # kubernetes.io/ingress.class: {{ .ingress.ingressClass | default "nginx" }}
     {{- with .ingress.annotations }}
     {{- toYaml . | nindent 4 }}
     {{- end }}

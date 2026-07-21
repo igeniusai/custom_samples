@@ -14,6 +14,7 @@ from typing import Any
 
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
+from fastapi import Request
 
 from app.config import TEMPLATES_DIR, GuardrailState, JudgeVerdict, output_state, save_state
 from app.judge import evaluate
@@ -70,7 +71,8 @@ def _get_verdict_data(message_id: str | None) -> dict[str, list[dict]]:
 
 
 @router.post("")
-async def run_output_guardrail(body: GuardrailRequest) -> dict[str, Any]:
+async def run_output_guardrail(body: GuardrailRequest, request: Request) -> dict[str, Any]:
+    print(request.headers)
     return await evaluate(body, output_state, _GUARDRAIL_NAME)
 
 

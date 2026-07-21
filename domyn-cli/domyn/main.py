@@ -86,8 +86,11 @@ def build(
         typer.echo(f"Not found: {dockerfile}")
         raise typer.Exit(1)
 
+    per_service_context = cfg.get("services", {}).get("build_context", {})
+    build_context = Path.cwd() / per_service_context[service] if service in per_service_context else service_dir
+
     platform = cfg.get("containers", {}).get("platform")
-    cmd = ["docker", "build", "-t", f"{service}:{tag}", "-f", str(dockerfile), str(service_dir)]
+    cmd = ["docker", "build", "-t", f"{service}:{tag}", "-f", str(dockerfile), str(build_context)]
     if platform:
         cmd += ["--platform", platform]
     subprocess.run(cmd, check=True)
