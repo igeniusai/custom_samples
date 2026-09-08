@@ -1,0 +1,13 @@
+[project]
+name = "watcher-example"
+version = "0.1.0"
+description = "Minimal FastAPI blueprint that logs incoming hook events on /watch_event."
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.136.1",
+    "pydantic>=2.13.4",
+    "uvicorn[standard]>=0.46.0",
+]
+
+[project.scripts]
+serve = "watcher_example:main"

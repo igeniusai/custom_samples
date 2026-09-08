@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${title} — Event History</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f0f2f5;
+            color: #1a2332;
+            margin: 0;
+            padding: 32px 16px 64px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        body.dark { background: #0d1117; color: #e6edf3; }
+
+        .page-header {
+            max-width: 760px;
+            margin: 0 auto 28px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #d5dbe4;
+        }
+
+        body.dark .page-header { border-bottom-color: #30363d; }
+
+        .page-header h1 {
+            font-size: 20px;
+            font-weight: 600;
+            color: #0d1b2e;
+            margin: 0 0 4px;
+            letter-spacing: -0.2px;
+        }
+
+        body.dark .page-header h1 { color: #e6edf3; }
+
+        .page-header p { color: #5a6a7e; margin: 0; font-size: 13px; }
+
+        .conv-group { max-width: 760px; margin: 0 auto 24px; }
+
+        .section-label {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: #7a8fa6;
+            margin-bottom: 8px;
+        }
+
+        body.dark .section-label { color: #8b949e; }
+
+        .section-label code {
+            font-family: 'SFMono-Regular', Consolas, monospace;
+            font-size: 11px;
+            background: #e4e8ee;
+            padding: 1px 5px;
+            border-radius: 3px;
+            color: #1a2332;
+        }
+
+        body.dark .section-label code { background: #21262d; color: #e6edf3; }
+
+        .event-card {
+            background: #ffffff;
+            border: 1px solid #d5dbe4;
+            border-left-width: 3px;
+            border-left-color: #2563a8;
+            border-radius: 6px;
+            padding: 12px 16px;
+            margin-bottom: 8px;
+        }
+
+        body.dark .event-card { background: #161b22; border-color: #30363d; border-left-color: #2563a8; }
+
+        .event-header { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+
+        .badge {
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            padding: 2px 8px;
+            border-radius: 20px;
+            flex-shrink: 0;
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        body.dark .badge { background: #0c2a4d; color: #93c5fd; }
+
+        .event-timestamp { font-size: 12px; color: #7a8fa6; }
+        body.dark .event-timestamp { color: #8b949e; }
+
+        .event-author { font-size: 12.5px; color: #3d4f63; }
+        body.dark .event-author { color: #c9d1d9; }
+
+        .event-json {
+            margin-top: 8px;
+            padding: 8px 12px;
+            background: #f8f9fb;
+            border-radius: 4px;
+            font-family: 'SFMono-Regular', Consolas, monospace;
+            font-size: 12px;
+            color: #3d4f63;
+            white-space: pre-wrap;
+            word-break: break-word;
+            overflow-x: auto;
+        }
+
+        body.dark .event-json { background: #1c2129; color: #c9d1d9; }
+
+        .checks-row {
+            margin-top: 8px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .check-badge {
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 20px;
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        body.dark .check-badge { background: #052e16; color: #6ee7b7; }
+
+        .check-badge.failed { background: #fee2e2; color: #991b1b; }
+
+        body.dark .check-badge.failed { background: #450a0a; color: #fca5a5; }
+
+        .empty, .error-msg {
+            max-width: 760px;
+            margin: 40px auto;
+            text-align: center;
+            color: #7a8fa6;
+            font-size: 14px;
+        }
+
+        .error-msg { color: #9b1c1c; }
+        body.dark .error-msg { color: #fca5a5; }
+
+        #loading {
+            max-width: 760px;
+            margin: 40px auto;
+            text-align: center;
+            color: #7a8fa6;
+        }
+    </style>
+</head>
+<body>
+    <div class="page-header">
+        <h1>${title}</h1>
+        <p>Received events</p>
+    </div>
+    <div id="loading">Loading…</div>
+    <div id="content" style="display:none"></div>
+
+    <script>
+        const DATA_PATH = '${data_path}';
+        const POLL_INTERVAL_MS = 5000;
+        let authHeader = null;
+        let currentMessageId = null;
+        let pollTimer = null;
+
+        function applyTheme(theme) {
+            document.body.classList.toggle('dark', theme === 'dark');
+        }
+
+        // Read what we can from the URL immediately — Domyn passes message_id
+        // as a query param on the iFrame src.
+        const urlParams = new URLSearchParams(window.location.search);
+        applyTheme(urlParams.get('theme') || 'light');
+        const urlMessageId = urlParams.get('message_id') || null;
+
+        // Still request full params to get the authorization header.
+        window.parent.postMessage({ type: 'request-params' }, '*');
+
+        window.addEventListener('message', function(event) {
+            if (!event.data || event.data.type !== 'params') return;
+            if (event.data.theme) applyTheme(event.data.theme);
+            if (event.data.authorization) authHeader = event.data.authorization;
+            startPolling(event.data.message_id || urlMessageId);
+        });
+
+        // Fallback: if no postMessage arrives within 600 ms, use URL params directly.
+        setTimeout(function() {
+            if (!currentMessageId && !pollTimer) startPolling(urlMessageId);
+        }, 600);
+
+        function startPolling(messageId) {
+            currentMessageId = messageId;
+            if (pollTimer) clearInterval(pollTimer);
+            fetchEvents();
+            pollTimer = setInterval(fetchEvents, POLL_INTERVAL_MS);
+        }
+
+        async function fetchEvents() {
+            const params = new URLSearchParams();
+            if (currentMessageId) params.set('message_id', currentMessageId);
+            const url = DATA_PATH + (params.toString() ? '?' + params : '');
+            const headers = {};
+            if (authHeader) headers['Authorization'] = authHeader;
+            try {
+                const resp = await fetch(url, { headers });
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
+                render(await resp.json());
+            } catch (e) {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('content').style.display = 'block';
+                document.getElementById('content').innerHTML =
+                    '<div class="error-msg">Failed to load events: ' + escHtml(e.message) + '</div>';
+            }
+        }
+
+        function render(data) {
+            document.getElementById('loading').style.display = 'none';
+            const content = document.getElementById('content');
+            content.style.display = 'block';
+            const turnIds = Object.keys(data);
+            if (turnIds.length === 0 || turnIds.every((tid) => (data[tid] || []).length === 0)) {
+                content.innerHTML = '<div class="empty">No events recorded yet.</div>';
+                return;
+            }
+            let html = '';
+            for (const [turnId, events] of Object.entries(data)) {
+                if (!events || events.length === 0) continue;
+                html += '<div class="conv-group">';
+                html += '<div class="section-label">Turn <code>' + escHtml(turnId) + '</code></div>';
+                for (const entry of events) {
+                    const evt = entry.event || {};
+                    html += '<div class="event-card">';
+                    html += '<div class="event-header">';
+                    html += '<span class="badge">' + escHtml(evt.event_type || 'event') + '</span>';
+                    if (evt.author) html += '<span class="event-author">' + escHtml(evt.author) + '</span>';
+                    html += '<span class="event-timestamp">' + escHtml(entry.received_at || '') + '</span>';
+                    html += '</div>';
+                    html += '<div class="event-json">' + escHtml(JSON.stringify(evt, null, 2)) + '</div>';
+                    if (entry.checks && Object.keys(entry.checks).length) {
+                        html += '<div class="checks-row">';
+                        for (const [name, status] of Object.entries(entry.checks)) {
+                            html += '<span class="check-badge' + (status === 'failed' ? ' failed' : '') + '">' + escHtml(checkLabel(name)) + ': ' + escHtml(status) + '</span>';
+                        }
+                        html += '</div>';
+                    }
+                    html += '</div>';
+                }
+                html += '</div>';
+            }
+            content.innerHTML = html;
+        }
+
+        function checkLabel(name) {
+            const labels = { pii: 'PII', toxicity: 'Toxicity', prompt_injection: 'Prompt Injection' };
+            return labels[name] || name;
+        }
+
+        function escHtml(s) {
+            return String(s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+    </script>
+</body>
+</html>
