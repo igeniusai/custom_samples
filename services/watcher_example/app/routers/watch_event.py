@@ -62,7 +62,7 @@ async def watch_event(request: HookRequest, background_tasks: BackgroundTasks) -
     turn_id = event.get("turn_id")
     if turn_id is not None:
         entry = {"received_at": datetime.now().isoformat(), "event": event, "checks": {}}
-        event_state.history.setdefault(str(turn_id), []).append(entry)
+        event_state.record(str(turn_id), entry)
         background_tasks.add_task(_run_checks_in_background, entry, check_config)
     else:
         logger.info("watch_event: event NOT recorded in history — turn_id is None")

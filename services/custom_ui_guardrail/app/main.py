@@ -46,3 +46,8 @@ app.include_router(output_guardrail.router)
 @app.get("/health", tags=["ops"])
 async def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/", tags=["ops"])
+async def root() -> dict[str, str]:
+    return {"status": "ok", "service": "custom-ui-guardrail"}

@@ -94,11 +94,14 @@ Domyn canvas next to each message — that polls
 JSON of every event received for that turn, most recent last.
 
 History is runtime-only: it is not persisted to disk and is cleared on
-restart, and it has no size cap (fine for this example, but worth bounding
-in any long-running deployment). `DELETE /watch_event/event-history/data`
-drops it without a restart — the whole history, or a single turn with
-`?message_id=<turn_id>` — which is how an automated test starts from a
-known-empty state. It is idempotent and reports how many turns it dropped.
+restart. It keeps the most recent `MAX_HISTORY_TURNS` turns (200) and evicts
+the oldest beyond that, so it stays bounded without anyone having to empty
+it. That matters because the store is shared by every caller: automated
+tests read it through the `message_id` of their own turn and must NOT wipe
+it, or they wipe the turns a concurrently running test is still collecting.
+`DELETE /watch_event/event-history/data` drops it without a restart — the
+whole history, or a single turn with `?message_id=<turn_id>` — for manual
+use. It is idempotent and reports how many turns it dropped.
 
 ## Check settings custom UI
 
