@@ -20,6 +20,10 @@ COPY langgraph_agent_controller/main.py .
 COPY langgraph_agent_controller/app/ app/
 COPY langgraph_agent_example/ agent/
 
+# The agent module lives at /srv/agent; app/process.py runs `domyn expose` with this cwd,
+# and the loader only adds cwd to sys.path. Without it the import of agent_expose fails.
+ENV AGENT_WORKDIR=/srv/agent
+
 EXPOSE 8080
 
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]

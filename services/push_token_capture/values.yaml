@@ -1,0 +1,29 @@
+services:
+  - name: push-token-capture
+    image:
+      registry: "eu.gcr.io/igenius-registry"
+      repository: push_token_capture
+      tag: "latest"
+      pullPolicy: Always
+    imagePullSecrets:
+      - name: vault-image-pull-secrets
+    # No env: the service holds no credentials of its own. It reads the claims of the tokens it
+    # captures, which are signed but not encrypted, and never needs the signing secret.
+    #
+    # The store is in memory and keyed by conversation, so this must stay on ONE replica: with two
+    # pods the tool call that captures a token and the test call that reads it can land on
+    # different ones, and the read finds nothing.
+    ingress:
+      enabled: true
+      host: "push-token-capture"
+      ingressClass: "azure-application-gateway"
+      annotations:
+        cert-manager.io/cluster-issuer: "letsencrypt"
+        appgw.ingress.kubernetes.io/health-probe-path: /health
+        appgw.ingress.kubernetes.io/ssl-redirect: "true"
+      portName: http
+      exposeName: "http"
+      targetPort: 8080
+      tls:
+        enabled: true
+        secretName: "tls-push-token-capture"

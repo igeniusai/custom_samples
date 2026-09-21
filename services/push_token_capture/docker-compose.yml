@@ -1,0 +1,8 @@
+services:
+  push-token-capture:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "9082:8080"
+    restart: unless-stopped
