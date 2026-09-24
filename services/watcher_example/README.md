@@ -14,7 +14,7 @@ checks (PII, Toxicity, Prompt Injection) run against received events.
 | ------ | ------------------------------------------ | ----------------------------------------------------------- |
 | POST   | `/watch_event`                             | Logs the incoming event, records it, returns `HookResult`. Must return HookResult immediately with success=True to avoid blocking the execution flow. Execute any operation in the background  |
 | GET    | `/watch_event/event-history`               | Custom UI iframe listing received events for a message      |
-| GET    | `/watch_event/event-history/data`          | Event history JSON, optionally filtered by `message_id`     |
+| GET    | `/watch_event/event-history/data`          | Event history JSON, optionally filtered by `message_id` or `conversation_id` |
 | DELETE | `/watch_event/event-history/data`          | Clear the history (all turns, or just `message_id`)         |
 | GET    | `/watch_event/settings`                    | Custom UI iframe to toggle the checks run on received events |
 | POST   | `/watch_event/settings`                    | Update which checks are enabled                              |
@@ -91,7 +91,12 @@ acknowledged but are not recorded (this is logged).
 `GET /watch_event/event-history` renders an iframe view — embedded in the
 Domyn canvas next to each message — that polls
 `/watch_event/event-history/data?message_id=<turn_id>` and displays the raw
-JSON of every event received for that turn, most recent last.
+JSON of every event received for that turn, most recent last. Opened at the
+conversation level (no `message_id`, only `conversation_id`) it shows the turns
+of that conversation; with neither it shows an empty state and never fetches the
+unscoped history, which holds every turn of every caller. The view polls every
+5s, only while it is visible, and leaves the DOM untouched when nothing changed;
+responses are gzip-compressed.
 
 History is runtime-only: it is not persisted to disk and is cleared on
 restart. It keeps the most recent `MAX_HISTORY_TURNS` turns (200) and evicts

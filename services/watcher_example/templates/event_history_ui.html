@@ -168,18 +168,22 @@
         const DATA_PATH = '${data_path}';
         const POLL_INTERVAL_MS = 5000;
         let authHeader = null;
-        let currentMessageId = null;
+        let currentScope = null;
         let pollTimer = null;
+        let lastBody = null;
+        let requestSeq = 0;
 
         function applyTheme(theme) {
             document.body.classList.toggle('dark', theme === 'dark');
         }
 
         // Read what we can from the URL immediately — Domyn passes message_id
-        // as a query param on the iFrame src.
+        // (message location) or conversation_id (conversation location) as query
+        // params on the iFrame src.
         const urlParams = new URLSearchParams(window.location.search);
         applyTheme(urlParams.get('theme') || 'light');
         const urlMessageId = urlParams.get('message_id') || null;
+        const urlConversationId = urlParams.get('conversation_id') || null;
 
         // Still request full params to get the authorization header.
         window.parent.postMessage({ type: 'request-params' }, '*');
@@ -188,37 +192,75 @@
             if (!event.data || event.data.type !== 'params') return;
             if (event.data.theme) applyTheme(event.data.theme);
             if (event.data.authorization) authHeader = event.data.authorization;
-            startPolling(event.data.message_id || urlMessageId);
+            startPolling(scopeOf(
+                event.data.message_id || urlMessageId,
+                event.data.conversation_id || urlConversationId,
+            ));
         });
 
         // Fallback: if no postMessage arrives within 600 ms, use URL params directly.
         setTimeout(function() {
-            if (!currentMessageId && !pollTimer) startPolling(urlMessageId);
+            if (!currentScope && !pollTimer) startPolling(scopeOf(urlMessageId, urlConversationId));
         }, 600);
 
-        function startPolling(messageId) {
-            currentMessageId = messageId;
+        // Polling is paused while the page is hidden; catch up as soon as it is shown again.
+        document.addEventListener('visibilitychange', function() {
+            if (!document.hidden && currentScope) fetchEvents();
+        });
+
+        // The query that scopes the history to what this iFrame is showing: one turn
+        // (message_id) or one conversation (conversation_id). Null when there is
+        // neither — the unscoped history holds every turn of every caller.
+        function scopeOf(messageId, conversationId) {
+            if (messageId) return 'message_id=' + encodeURIComponent(messageId);
+            if (conversationId) return 'conversation_id=' + encodeURIComponent(conversationId);
+            return null;
+        }
+
+        function startPolling(scope) {
             if (pollTimer) clearInterval(pollTimer);
+            pollTimer = null;
+            currentScope = scope;
+            lastBody = null;
+            if (!scope) {
+                renderEmpty('No message or conversation to show events for.');
+                return;
+            }
             fetchEvents();
             pollTimer = setInterval(fetchEvents, POLL_INTERVAL_MS);
         }
 
         async function fetchEvents() {
-            const params = new URLSearchParams();
-            if (currentMessageId) params.set('message_id', currentMessageId);
-            const url = DATA_PATH + (params.toString() ? '?' + params : '');
+            if (document.hidden) return;
+            const scope = currentScope;
+            const seq = ++requestSeq;
             const headers = {};
             if (authHeader) headers['Authorization'] = authHeader;
             try {
-                const resp = await fetch(url, { headers });
+                const resp = await fetch(DATA_PATH + '?' + scope, { headers });
                 if (!resp.ok) throw new Error('HTTP ' + resp.status);
-                render(await resp.json());
+                const body = await resp.text();
+                // A slower response for an earlier scope (or poll) must not overwrite a newer one.
+                if (seq !== requestSeq || scope !== currentScope) return;
+                // Unchanged since the last poll: keep the DOM as it is.
+                if (body === lastBody) return;
+                lastBody = body;
+                render(JSON.parse(body));
             } catch (e) {
+                if (seq !== requestSeq) return;
+                lastBody = null;
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('content').style.display = 'block';
                 document.getElementById('content').innerHTML =
                     '<div class="error-msg">Failed to load events: ' + escHtml(e.message) + '</div>';
             }
+        }
+
+        function renderEmpty(text) {
+            document.getElementById('loading').style.display = 'none';
+            const content = document.getElementById('content');
+            content.style.display = 'block';
+            content.innerHTML = '<div class="empty">' + escHtml(text) + '</div>';
         }
 
         function render(data) {
@@ -227,7 +269,7 @@
             content.style.display = 'block';
             const turnIds = Object.keys(data);
             if (turnIds.length === 0 || turnIds.every((tid) => (data[tid] || []).length === 0)) {
-                content.innerHTML = '<div class="empty">No events recorded yet.</div>';
+                renderEmpty('No events recorded yet.');
                 return;
             }
             let html = '';

@@ -39,9 +39,15 @@ def _render_settings_ui() -> str:
     )
 
 
-def _get_event_data(message_id: str | None) -> dict[str, list[dict]]:
+def _get_event_data(message_id: str | None, conversation_id: str | None) -> dict[str, list[dict]]:
     if message_id is not None:
         return {message_id: event_state.history.get(message_id, [])}
+    if conversation_id is not None:
+        return {
+            turn_id: entries
+            for turn_id, entries in event_state.history.items()
+            if any(str(entry["event"].get("conversation_id")) == conversation_id for entry in entries)
+        }
     return dict(event_state.history)
 
 
@@ -71,8 +77,14 @@ async def watch_event(request: HookRequest, background_tasks: BackgroundTasks) -
 
 
 @router.get("/watch_event/event-history/data")
-async def get_event_history_data(message_id: str | None = None) -> dict:
-    return _get_event_data(message_id)
+async def get_event_history_data(message_id: str | None = None, conversation_id: str | None = None) -> dict:
+    """Recorded events grouped by turn id.
+
+    `message_id` narrows it to one turn, `conversation_id` to the turns of one
+    conversation (`message_id` wins when both are given). With neither, the whole
+    shared history is returned — every turn of every caller, up to MAX_HISTORY_TURNS.
+    """
+    return _get_event_data(message_id, conversation_id)
 
 
 @router.delete("/watch_event/event-history/data")
