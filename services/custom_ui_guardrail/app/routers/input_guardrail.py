@@ -12,7 +12,7 @@ GET  /input-guardrail/.well-known/domyn-custom-ui — discovery metadata
 import string
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
 from app.config import TEMPLATES_DIR, GuardrailState, JudgeVerdict, input_state, save_state
@@ -103,7 +103,13 @@ async def get_input_verdict_history_ui() -> HTMLResponse:
     return HTMLResponse(content=_render_history_ui())
 
 
-@router.get("/.well-known/domyn-custom-ui")
+@router.get("/test")
+async def test_endpoint(request: Request) -> dict[str, Any]:
+    headers = dict(request.headers)
+    print(f"[{_GUARDRAIL_NAME}] incoming headers: {headers}")
+    return {"status": "ok", "headers": headers}
+
+@router.get("/.well-known/domyn-custom-server")
 async def get_input_custom_ui_metadata() -> dict[str, Any]:
     return {
         "name": "input-judge-guardrail",
@@ -144,4 +150,18 @@ async def get_input_custom_ui_metadata() -> dict[str, Any]:
                 "icon": None,
             },
         ],
+        "apis": [
+            {
+                "id": "",
+                "label": {
+                    "default": "TEST INPUT",
+                    "it": "TEST INPUT"
+                },
+                "description": {
+                    "default": "TEST INPUT desc",
+                    "it": "TEST INPUT desc"
+                },
+                "base_path": "/input-guardrail/"
+            }
+        ]
     }

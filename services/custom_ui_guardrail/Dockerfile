@@ -12,6 +12,7 @@ RUN uv sync --frozen --no-install-project
 # Copy application code
 COPY guardrail_custom_ui_blueprint.py .
 COPY app/ app/
+COPY data/ data/
 COPY templates/ templates/
 
 # Install the project itself (registers the `serve` console script)

@@ -5,6 +5,7 @@ from langchain.agents import create_agent
 from langchain.tools import BaseTool
 from langchain_core.tools import tool
 from langchain_openai import ChatOpenAI
+from langgraph.checkpoint.memory import InMemorySaver
 
 from domyn_agents.integrations.langgraph import input_mapper
 from domyn_agents.integrations.langgraph.domyn_platform import (
@@ -112,11 +113,17 @@ def _get_llm() -> ChatOpenAI:
     )
 
 
+# In-memory checkpointer so the graph keeps conversation state (message history)
+# across turns. Swap for a persistent checkpointer (e.g. SqliteSaver/PostgresSaver)
+# if state must survive a process restart.
+_checkpointer = InMemorySaver()
+
+
 @input_mapper(lambda d: {"messages": [{"role": "user", "content": d.get("task", "")}]})
 def build_graph(tools: list[BaseTool] | None = None):
     """Build a ReAct agent graph with the given tools (defaults to LOCAL_TOOLS)."""
     filtered_tools = [tool for tool in (tools or LOCAL_TOOLS) if tool is not None]
-    return create_agent(_get_llm(), filtered_tools)
+    return create_agent(_get_llm(), filtered_tools, checkpointer=_checkpointer)
 
 
 graph = build_graph()
