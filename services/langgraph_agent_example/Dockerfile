@@ -17,8 +17,12 @@ COPY agent_expose.py .
 
 # Connect to the Domyn platform via WebSocket relay
 # All required values come from environment variables (see .env.example)
+# CMD ["sh", "-c", \
+#     "domyn expose agent_expose:graph \
+#         --channel-id $CHANNEL_ID \
+#         --space-id   $SPACE_ID \
+#         --base-url   $PLATFORM_BASE_URL"]
 CMD ["sh", "-c", \
     "domyn expose agent_expose:graph \
-        --channel-id $CHANNEL_ID \
-        --space-id   $SPACE_ID \
-        --base-url   $PLATFORM_BASE_URL"]
+        --target channel_id=$CHANNEL_ID,space_id=$SPACE_ID,base_url=$PLATFORM_BASE_URL \
+        --target channel_id=$CHANNEL_ID_B,space_id=$SPACE_ID_B,base_url=$PLATFORM_BASE_URL_B"]

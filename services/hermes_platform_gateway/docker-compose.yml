@@ -1,0 +1,22 @@
+services:
+  hermes-platform-gateway:
+    build:
+      context: .
+      args:
+        # Pin to a specific hermes-agent tag/commit for reproducible builds.
+        # Override at build time: `docker compose build --build-arg HERMES_REF=v0.14.0`.
+        HERMES_REF: main
+    image: hermes-platform-gateway:latest
+    env_file: .env
+    restart: unless-stopped
+    # Keep stdin open + tty so hermes' interactive chat loop stays alive
+    # even though we don't actually attach a terminal.
+    stdin_open: true
+    tty: true
+    # Persist the hermes home (sessions, memory, cached canvas state) across
+    # container restarts so the agent doesn't lose state on each boot.
+    volumes:
+      - hermes-home:/root/.hermes
+
+volumes:
+  hermes-home:

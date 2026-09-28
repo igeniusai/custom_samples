@@ -1,0 +1,5 @@
+# Runtime deps the gateway plugin needs that hermes-agent doesn't already pull in.
+# hermes-agent itself is installed in the Dockerfile from git (no PyPI release).
+# domyn-agents is installed from the bundled wheel under ./wheels/.
+httpx>=0.27
+websockets>=12

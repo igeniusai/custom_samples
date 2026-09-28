@@ -1,0 +1,2 @@
+# Drop `domyn_agents-*.whl` here before `docker compose build`.
+# Build it from the domyn-agents repo: `uv build --wheel --out-dir /tmp/dist`.
